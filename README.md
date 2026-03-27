@@ -35,7 +35,7 @@ source install/setup.bash
 In order to not have to source the setup file after every build, you can add the following line at the end of your .bashrc file (which you can access by executing `nano .bashrc` in your home directory): 
 
 ```bash
-source /home/<user>/franka_ros2_ws/install/setup.sh
+source /home/<user>/franka_ros2_ws/install/setup.bash
 ```
 
 (to be continued...)
