@@ -26,9 +26,9 @@ Change your current directory in the terminal to **/franka_ros2_ws/src**. Clone 
 
 ```bash
 cd franka_ros2_ws/src
-git clone https://github.com/frovnan/BA_thesis_controller_library.git
+git clone https://github.com/frovnan/pdz_controller_library.git
 cd franka_ros2_ws
-colcon build --packages-select BA_thesis_controller_library
+colcon build --packages-select pdz_controller_library
 source install/setup.bash
 ```
 
