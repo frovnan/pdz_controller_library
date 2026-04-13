@@ -11,7 +11,7 @@ These include:
 * [Hybrid Force/Impedance Contoller](﻿https://github.com/krombier/Bachelor_Thesis_Force_Control)
 * [Hybrid Impedance/Admittance Controller](https://github.com/enjoyericbu/hybridcontroller)
 * [Potential Field Method](https://github.com/anel-b/repulsive_force)
-* [Riemann Motion Policy](https://github.com/acaviezel/riemannian_motion_policy)
+* [Riemann Motion Policy]([https://github.com/MatteoBodmer/riemannian_motion_policy_mb])
 * [Singularity and Oscillation Avoidance](https://github.com/GeniusT31/src)
 
 ## Prerequisites
