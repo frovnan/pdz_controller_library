@@ -1,0 +1,15 @@
+controller_manager:
+  ros__parameters:
+    update_rate: 1000  # Hz
+
+    cartesian_impedance_controller:
+      type: pdz_controller_library/CartesianImpedanceController
+
+    joint_impedance_controller:
+      type: pdz_controller_library/JointImpedanceController
+
+    joint_impedance_ik_controller:
+      type: pdz_controller_library/JointImpedanceIkController
+
+    riemannian_motion_policy:
+      type: pdz_controller_library/RiemannianMotionPolicy

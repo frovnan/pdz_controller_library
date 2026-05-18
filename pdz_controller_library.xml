@@ -1,0 +1,42 @@
+<library path="pdz_controller_library">
+    <class 
+        name="pdz_controller_library/CartesianImpedanceController"
+        type="pdz_controller_library::CartesianImpedanceController" 
+        base_class_type="controller_interface::ControllerInterface">
+
+        <description>
+            The cartesian impedance controller uses cartesian impedance control to bring the Robot to a desired position and orientation.
+        </description>
+    </class>
+
+    <class 
+        name="pdz_controller_library/JointImpedanceController"
+        type="pdz_controller_library::JointImpedanceController" 
+        base_class_type="controller_interface::ControllerInterface">
+
+        <description>
+            The joint impedance controller uses joint impedance control to bring the Robot to a desired position and orientation.
+        </description>
+    </class>
+
+    <class 
+        name="pdz_controller_library/JointImpedanceIkController"
+        type="pdz_controller_library::JointImpedanceIkController" 
+        base_class_type="controller_interface::ControllerInterface">
+
+        <description>
+            The joint impedance IK controller uses differential inverse kinematics and impedance control for Cartesian end-effector motion.
+        </description>
+    </class>
+
+    <class 
+        name="pdz_controller_library/RiemannianMotionPolicy"
+        type="pdz_controller_library::RiemannianMotionPolicy" 
+        base_class_type="controller_interface::ControllerInterface">
+
+        <description>
+            The riemannian motion policy uses riemannian geometry to plan and execute motion for the Robot.
+        </description>
+    </class>
+
+</library>
