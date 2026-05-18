@@ -2,7 +2,7 @@
 
 ## Description
 
-A ROS 2 Humble package that will someday contain various works by students from Pd|Z for the Franka Emika FR3 robot arm. 
+A ROS 2 Humble package that contains various works by students from Pd|Z for the Franka Emika FR3 robot arm. 
 
 These include:
 * [Cartesian Impedance Controller](https://github.com/LucasG2001/cartesian_impedance_control)
