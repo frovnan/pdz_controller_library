@@ -181,4 +181,20 @@ In order to not have to source the setup file after every build, you can add the
 source /home/<user>/franka_ros2_ws/install/setup.bash
 ```
 
+---
+
+## Usage
+
+To launch a controller, execute the following command:
+
+```bash
+ros2 launch pdz_controller_library <launch file name>
+```
+
+To run any additional functionalities like e.g. the user_input_client, open a new terminal and enter the following:
+
+```bash
+ros2 run pdz_controller_library <node name>
+```
+
 ##
