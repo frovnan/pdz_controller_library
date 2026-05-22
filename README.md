@@ -6,7 +6,7 @@ A ROS 2 Humble package that contains various works by students from Pd|Z for the
 
 These include:
 * [Cartesian Impedance Controller](https://github.com/LucasG2001/cartesian_impedance_control)
-* [Cartesian Admittance Controller](https://github.com/LucasG2001/admittance_control)
+* [Admittance Controller](https://github.com/LucasG2001/admittance_control)
 * Joint Impedance Controller
 * [Hybrid Force/Impedance Contoller](https://github.com/krombier/Bachelor_Thesis_Force_Control)
 * [Hybrid Impedance/Admittance Controller](https://github.com/enjoyericbu/hybridcontroller)
@@ -50,6 +50,15 @@ Navigate to the 'controllers.yaml' file located in 'franka_bringup/config/', and
       
       joint_impedance_ik_controller:
         type: pdz_contoller_library/JointImpedanceIkController
+      
+      joint_impedance_ik_controller:
+        type: pdz_contoller_library/JointImpedanceIkController
+
+      impedance_admittance_hybrid_controller:
+        type: pdz_controller_library/ImpedanceAdmittanceHybridController
+    
+      admittance_controller:
+        type: pdz_controller_library/AdmittanceController
 ```
 If you plan on using Gazebo, do the same in the 'franka_gazebo_controllers.yaml' inside 'franka_gazebo/config/'.
 Further down, you will need to add these lines:
@@ -120,6 +129,16 @@ Further down, you will need to add these lines:
   riemannian_motion_policy:
     ros__parameters:
       robot_type: "fr3"
+
+/**:
+  impedance_admittance_hybrid_controller:
+    ros__parameters:
+      robot_type: "fr3"
+  
+/**:
+  admittance_controller:
+    ros__parameters:
+      robot_type: "fr3"
 ```
 The numbers under the impedance controllers are the stiffness and damping gains for each task-space DoF (in the case of cartesian impedance) or joint-space DoF (in the case of joint impedace). Change them to suit your needs.
 
@@ -136,7 +155,7 @@ Change your current directory in the terminal back to  **/franka_ros2_ws** and b
 
   ```bash
   cd ..
-  colcon build --packages-select cartesian_impedance_control
+  colcon build --packages-select pdz_controller_library
   ```
 
 ### Step 5: Update '.bashrc' file
