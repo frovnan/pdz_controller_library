@@ -3,7 +3,7 @@
 <package format="3">
   <name>pdz_controller_library</name>
   <version>0.0.0</version>
-  <description>ROS2 controller library for FR3 robot arm</description>
+  <description>ROS2 controller library for Franka Emika FR3 robot arm</description>
   <maintainer email="frovnan@ethz.ch">frovnan</maintainer>
   <license>Apache-2.0</license>
 

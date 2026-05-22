@@ -9,6 +9,8 @@
         </description>
     </class>
 
+
+
     <class 
         name="pdz_controller_library/JointImpedanceController"
         type="pdz_controller_library::JointImpedanceController" 
@@ -18,6 +20,8 @@
             The joint impedance controller uses joint impedance control to bring the Robot to a desired position and orientation.
         </description>
     </class>
+
+
 
     <class 
         name="pdz_controller_library/JointImpedanceIkController"
@@ -29,6 +33,8 @@
         </description>
     </class>
 
+
+
     <class 
         name="pdz_controller_library/RiemannianMotionPolicy"
         type="pdz_controller_library::RiemannianMotionPolicy" 
@@ -36,6 +42,30 @@
 
         <description>
             The riemannian motion policy uses riemannian geometry to plan and execute motion for the Robot.
+        </description>
+    </class>
+
+
+
+    <class 
+        name="pdz_controller_library/ImpedanceAdmittanceHybridController"
+        type="pdz_controller_library::ImpedanceAdmittanceHybridController" 
+        base_class_type="controller_interface::ControllerInterface">
+
+        <description>
+            The hybrid impedance-admittance controller dynamically switches between impedance and admittance control based on the interaction forces, allowing for adaptive and responsive behavior in various environments.
+        </description>
+    </class>
+
+
+
+    <class 
+        name="pdz_controller_library/AdmittanceController"
+        type="pdz_controller_library::AdmittanceController" 
+        base_class_type="controller_interface::ControllerInterface">
+
+        <description>
+            An admittance controller brings the robot into a desired orientation and/or position with an outer compliance control loop and an inner position control loop.
         </description>
     </class>
 

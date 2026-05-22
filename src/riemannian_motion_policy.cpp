@@ -71,7 +71,7 @@ void RiemannianMotionPolicy::update_stiffness_and_references(){
 // pseudoInverse
 // ---------------------------------------------------------------------------
 inline void pseudoInverse(const Eigen::MatrixXd& M_, Eigen::MatrixXd& M_pinv_, bool damped = true) {
-  double lambda_ = damped ? 0.2 : 0.0;
+  double lambda_ = damped ? 1e-6 : 0.0;
   /*
   Eigen::JacobiSVD<Eigen::MatrixXd> svd(M_, Eigen::ComputeFullU | Eigen::ComputeFullV);   
   Eigen::JacobiSVD<Eigen::MatrixXd>::SingularValuesType sing_vals_ = svd.singularValues();
@@ -87,6 +87,51 @@ inline void pseudoInverse(const Eigen::MatrixXd& M_, Eigen::MatrixXd& M_pinv_, b
 
   M_pinv_ = M_.transpose() * A.ldlt().solve(Eigen::MatrixXd::Identity(A.rows(), A.rows()));
 }
+
+
+
+// ---------------------------------------------------------------------------
+// RMP for task-space target attraction
+// ---------------------------------------------------------------------------
+Eigen::MatrixXd RiemannianMotionPolicy::calculate_target_attraction(const Eigen::VectorXd& error, const Eigen::MatrixXd& jacobian) {
+  //declarations
+  Eigen::VectorXd f_attract = Eigen::VectorXd::Zero(6);  
+  Eigen::MatrixXd A_attract = Eigen::MatrixXd::Zero(6, 6);
+  Eigen::MatrixXd j_translational = jacobian.topRows(3);
+  Eigen::MatrixXd j_rotational = jacobian.bottomRows(3);
+  Eigen::Vector3d error_position = error.head(3);
+  Eigen::Vector3d error_orientation = error.tail(3);
+  Eigen::Matrix3d M_far = Eigen::Matrix3d::Zero();
+  Eigen::Matrix3d M_near = Eigen::Matrix3d::Zero();
+  //target metric
+  Eigen::Matrix3d A_position = Eigen::Matrix3d::Zero();
+  double alpha = (1 - alpha_min) *exp((-1 * error_position.squaredNorm()) / (2*sigma_a)) + alpha_min;
+  double beta = exp((-1 * error_position.squaredNorm()) / (2*sigma_b));
+  M_near = Eigen::Matrix3d::Identity();
+  if (error_position.squaredNorm() < 1e-6) {
+    M_far.setZero();
+  } else {
+    M_far = (1.0 / error_position.squaredNorm()) * (error_position * error_position.transpose());
+  }
+  //M_far = 1.0/(error_position.squaredNorm()) * error_position * error_position.transpose();
+  A_position = (beta * b + (1 - beta)) * (alpha * M_near + (1 - alpha) * M_far);
+  A_attract.topLeftCorner(3, 3) = A_position;
+  // std::cout << "A_position:\n" << A_position << std::endl;
+  // std::cout << "M_near:\n" << M_near << std::endl;
+  // std::cout << "M_far:\n" << M_far << std::endl;
+  // std::cout << "beta:\n" << beta << std::endl;
+  // std::cout << "b:\n" << b << std::endl;
+  // std::cout << "alpha:\n" << alpha << std::endl;
+  // std::cout << "error_position:\n" << error_position << std::endl;
+  //axis metric
+  Eigen::Matrix3d A_orientation = Eigen::Matrix3d::Zero();
+  double beta_axis = exp((-1 * std::pow(error_position.norm(), 2)) / (2*sigma_o));
+  A_orientation = (beta_axis * b_axis + 1 - beta_axis) * Eigen::Matrix3d::Identity();
+  A_attract.bottomRightCorner(3, 3) = A_orientation;
+  
+  return  weight_attractor * A_attract;
+}
+
 
 
 // ---------------------------------------------------------------------------
@@ -165,11 +210,11 @@ Eigen::MatrixXd RiemannianMotionPolicy::calculate_A_obstacle(const Eigen::Vector
   if (!d_obs.allFinite() || !f_obstacle.allFinite()) {
       throw std::runtime_error("d_obs or f_obstacle contains invalid values (NaN or inf).");
   }
+
   if (d_obs.norm() < r_a) {
     w_r = c_2 * d_obs.norm() * d_obs.norm() + c_1 * d_obs.norm() + 1.0;
 
-  }
-  else {
+  } else {
     w_r = 0.0;
   }
 
@@ -187,140 +232,13 @@ Eigen::MatrixXd RiemannianMotionPolicy::calculate_A_obstacle(const Eigen::Vector
 
 
 // ---------------------------------------------------------------------------
-// RMP for task-space target attraction
-// ---------------------------------------------------------------------------
-Eigen::MatrixXd RiemannianMotionPolicy::calculate_target_attraction(const Eigen::VectorXd& error, const Eigen::MatrixXd& jacobian) {
-  //declarations
-  Eigen::VectorXd f_attract = Eigen::VectorXd::Zero(6);  
-  Eigen::MatrixXd A_attract = Eigen::MatrixXd::Zero(6, 6);
-  Eigen::MatrixXd j_translational = jacobian.topRows(3);
-  Eigen::MatrixXd j_rotational = jacobian.bottomRows(3);
-  Eigen::Vector3d error_position = error.head(3);
-  Eigen::Vector3d error_orientation = error.tail(3);
-  Eigen::Matrix3d M_far = Eigen::Matrix3d::Zero();
-  Eigen::Matrix3d M_near = Eigen::Matrix3d::Zero();
-  //target metric
-  Eigen::Matrix3d A_position = Eigen::Matrix3d::Zero();
-  double alpha = (1 - alpha_min) *exp((-1 * error_position.squaredNorm()) / (2*sigma_a)) + alpha_min;
-  double beta = exp((-1 * error_position.squaredNorm()) / (2*sigma_b));
-  M_near = Eigen::Matrix3d::Identity();
-  if (error_position.squaredNorm() < 1e-6) {
-    M_far.setZero();
-  } else {
-    M_far = (1.0 / error_position.squaredNorm()) * (error_position * error_position.transpose());
-  }
-  //M_far = 1.0/(error_position.squaredNorm()) * error_position * error_position.transpose();
-  A_position = (beta * b + (1 - beta)) * (alpha * M_near + (1 - alpha) * M_far);
-  A_attract.topLeftCorner(3, 3) = A_position;
-  // std::cout << "A_position:\n" << A_position << std::endl;
-  // std::cout << "M_near:\n" << M_near << std::endl;
-  // std::cout << "M_far:\n" << M_far << std::endl;
-  // std::cout << "beta:\n" << beta << std::endl;
-  // std::cout << "b:\n" << b << std::endl;
-  // std::cout << "alpha:\n" << alpha << std::endl;
-  // std::cout << "error_position:\n" << error_position << std::endl;
-  //axis metric
-  Eigen::Matrix3d A_orientation = Eigen::Matrix3d::Zero();
-  double beta_axis = exp((-1 * std::pow(error_position.norm(), 2)) / (2*sigma_o));
-  A_orientation = (beta_axis * b_axis + 1 - beta_axis) * Eigen::Matrix3d::Identity();
-  A_attract.bottomRightCorner(3, 3) = A_orientation;
-  
-  return  weight_attractor * A_attract;
-}
-
-
-
-// ---------------------------------------------------------------------------
-// RMP for global damping
-// ---------------------------------------------------------------------------
-std::pair<Eigen::VectorXd, Eigen::MatrixXd> RiemannianMotionPolicy::calculate_global_damping(const Eigen::MatrixXd& Jp_obstacle) {
-  Eigen::VectorXd f_damping = Eigen::VectorXd::Zero(6);
-  Eigen::VectorXd velocity = Jp_obstacle * dq_;
-  f_damping.topRows(3) = -k_damp * velocity * velocity.norm();
-  Eigen::MatrixXd A_damping = Eigen::MatrixXd::Zero(6, 6);
-  Eigen::MatrixXd identity_3 = Eigen::Matrix3d::Identity();
-  A_damping.topLeftCorner(3, 3) = velocity.norm() * identity_3 * weight_damping;
-  //return A_damping and f_damping
-  return std::make_pair(f_damping, A_damping);
-}
-
-
-
-// ---------------------------------------------------------------------------
-// RMP for joint limit avoidance
-// ---------------------------------------------------------------------------
-void RiemannianMotionPolicy::rmp_joint_limit_avoidance(){
-  //TODO: Implement the calculation of D_sigma fro joint limits
-  //calculate sigma_u = 1/(1 + exp(-q))
-  Eigen::VectorXd x_lower = Eigen::VectorXd::Zero(7);
-  Eigen::VectorXd dx_lower = Eigen::VectorXd::Zero(7);
-  Eigen::VectorXd x_upper = Eigen::VectorXd::Zero(7);
-  Eigen::VectorXd dx_upper = Eigen::VectorXd::Zero(7);
-  for (size_t i = 0; i < 7; ++i) {
-    x_lower(i) = (q_(i) - q_lower_limit(i)) / (q_upper_limit(i) - q_lower_limit(i));
-    dx_lower(i) = dq_(i) / (q_upper_limit(i) - q_lower_limit(i));
-
-    x_upper(i) = (q_upper_limit(i) - q_(i)) / (q_upper_limit(i) - q_lower_limit(i));
-    dx_upper(i) = -dq_(i) / (q_upper_limit(i) - q_lower_limit(i));
-
-    f_joint_limits_lower(i) = kp_joint_limits/((std::pow(x_lower(i),2)/std::pow(l_p,2)) + accel_eps)  - kd_joint_limits * dx_lower(i);
-    f_joint_limits_upper(i) = kp_joint_limits/((std::pow(x_upper(i),2)/std::pow(l_p,2)) + accel_eps)  - kd_joint_limits * dx_upper(i);
-    A_joint_limits_lower(i,i) = weight_joint_limits * (1 - (1/(1 + exp(-dx_lower(i)/v_m)))) * (1/((x_lower(i)/l_m)+ epsilon_joint_limits));
-    A_joint_limits_upper(i,i) = weight_joint_limits * (1 - (1/(1 + exp(-dx_upper(i)/v_m)))) * (1/((x_upper(i)/l_m)+ epsilon_joint_limits));
-    
-    // Debugging printouts
-    // std::cout << "===================" << std::endl;
-    // std::cout << "Joint " << i + 1 << ":\n";
-    // std::cout << "  q_: " << q_(i) << ", dq_: " << dq_(i) << "\n";
-    // std::cout << "  x_lower: " << x_lower(i) << ", dx_lower: " << dx_lower(i) << "\n";
-    // std::cout << "  f_joint_limits_lower: " << f_joint_limits_lower(i) << "\n";
-
-  }
-}
-
-
-
-// ---------------------------------------------------------------------------
-// RMP for joint-velocity limit avoidance
-// ---------------------------------------------------------------------------
- void RiemannianMotionPolicy::rmp_joint_velocity_limits(){
-  Eigen::VectorXd q_dot_max = Eigen::VectorXd::Zero(7);
-  q_dot_max << 2.175, 2.175, 2.175, 2.175, 2.61, 2.61, 2.61;
-  
-  for (size_t i = 0; i < 7; ++i) {
-    double sign = std::copysign(1.0, dq_(i)); // Returns 1.0 for positive x, -1.0 for negative x.
-    double dq_abs = std::abs(dq_(i));
-    f_joint_velocity(i) = -k_joint_velocity * sign * (dq_abs - (q_dot_max(i) - 1.5));
-    if(dq_abs < (q_dot_max(i) - 1.5)){
-      A_joint_velocity(i,i) = 0.0;
-    }
-    else{
-      A_joint_velocity(i,i) = weight_joint_velocity/(1 - std::pow((dq_abs - (q_dot_max(i) - 1.5)), 2)/(std::pow(1.5, 2)));
-    }
-
-      // Debugging printouts
-      // std::cout << "Joint " << i + 1 << ":\n";
-      // std::cout << "  dq_: " << dq_(i) << "\n";
-      // std::cout << "  q_dot_max: " << q_dot_max(i) << "\n";
-      // std::cout << "  k_joint_velocity: " << k_joint_velocity << "\n";
-      // std::cout << "  weight_joint_velocity: " << weight_joint_velocity << "\n";
-      // std::cout << "  f_joint_velocity: " << f_joint_velocity(i) << "\n";
-      // std::cout << "  A_joint_velocity: " << A_joint_velocity(i, i) << "\n";
-  }
-}
-
-
-
-
-// ---------------------------------------------------------------------------
 // RMP for joint-space target attraction
 // ---------------------------------------------------------------------------
 void RiemannianMotionPolicy::rmp_cspacetarget(){
   for (size_t i = 0; i < 7; ++i) {
     if(std::abs(q_(i)) < theta_cspace){
       f_c_space_target(i) = kp_c_space_target(i,i) * (q_0(i) - q_(i)) - kd_c_space_target(i,i) * dq_(i);
-    }
-    else{
+    } else {
       double diff = q_0(i) - q_(i);  // Scalar difference
       double abs_diff = std::abs(diff) + 1e-6;
       f_c_space_target(i) = kp_c_space_target(i,i) * theta_cspace * diff/abs_diff - kd_c_space_target(i,i) * dq_(i);
@@ -344,8 +262,8 @@ void RiemannianMotionPolicy::rmp_cspacetarget(){
 
       // Additional safety check for empty dotProducts
     if (dotProducts.size() == 0) {
-    A_c_space_target = weight_c_space_target * Eigen::MatrixXd::Identity(7,7);
-    return;
+      A_c_space_target = weight_c_space_target * Eigen::MatrixXd::Identity(7,7);
+      return;
     }
 
     // Find the index of the maximum dot product.
@@ -362,6 +280,87 @@ void RiemannianMotionPolicy::rmp_cspacetarget(){
 
 
 // ---------------------------------------------------------------------------
+// RMP for joint limit avoidance
+// ---------------------------------------------------------------------------
+void RiemannianMotionPolicy::rmp_joint_limit_avoidance(){
+  //TODO: Implement the calculation of D_sigma fro joint limits
+  //calculate sigma_u = 1/(1 + exp(-q))
+  Eigen::VectorXd x_lower = Eigen::VectorXd::Zero(7);
+  Eigen::VectorXd dx_lower = Eigen::VectorXd::Zero(7);
+  Eigen::VectorXd x_upper = Eigen::VectorXd::Zero(7);
+  Eigen::VectorXd dx_upper = Eigen::VectorXd::Zero(7);
+
+  for (size_t i = 0; i < 7; ++i) {
+    x_lower(i) = (q_(i) - q_lower_limit(i)) / (q_upper_limit(i) - q_lower_limit(i));
+    dx_lower(i) = dq_(i) / (q_upper_limit(i) - q_lower_limit(i));
+
+    x_upper(i) = (q_upper_limit(i) - q_(i)) / (q_upper_limit(i) - q_lower_limit(i));
+    dx_upper(i) = -dq_(i) / (q_upper_limit(i) - q_lower_limit(i));
+
+    f_joint_limits_lower(i) = kp_joint_limits/((std::pow(x_lower(i),2)/std::pow(l_p,2)) + accel_eps)  - kd_joint_limits * dx_lower(i);
+    f_joint_limits_upper(i) = kp_joint_limits/((std::pow(x_upper(i),2)/std::pow(l_p,2)) + accel_eps)  - kd_joint_limits * dx_upper(i);
+    A_joint_limits_lower(i,i) = weight_joint_limits * (1 - (1/(1 + exp(-dx_lower(i)/v_m)))) * (1/((x_lower(i)/l_m)+ epsilon_joint_limits));
+    A_joint_limits_upper(i,i) = weight_joint_limits * (1 - (1/(1 + exp(-dx_upper(i)/v_m)))) * (1/((x_upper(i)/l_m)+ epsilon_joint_limits));
+    
+    // Debugging printouts
+    // std::cout << "===================" << std::endl;
+    // std::cout << "Joint " << i + 1 << ":\n";
+    // std::cout << "  q_: " << q_(i) << ", dq_: " << dq_(i) << "\n";
+    // std::cout << "  x_lower: " << x_lower(i) << ", dx_lower: " << dx_lower(i) << "\n";
+    // std::cout << "  f_joint_limits_lower: " << f_joint_limits_lower(i) << "\n";
+  }
+}
+
+
+
+// ---------------------------------------------------------------------------
+// RMP for joint-velocity limit avoidance
+// ---------------------------------------------------------------------------
+ void RiemannianMotionPolicy::rmp_joint_velocity_limits(){
+  Eigen::VectorXd q_dot_max = Eigen::VectorXd::Zero(7);
+  q_dot_max << 2.175, 2.175, 2.175, 2.175, 2.61, 2.61, 2.61;
+  
+  for (size_t i = 0; i < 7; ++i) {
+    double sign = std::copysign(1.0, dq_(i)); // Returns 1.0 for positive x, -1.0 for negative x.
+    double dq_abs = std::abs(dq_(i));
+    f_joint_velocity(i) = -k_joint_velocity * sign * (dq_abs - (q_dot_max(i) - 1.5));
+
+    if(dq_abs < (q_dot_max(i) - 1.5)){
+      A_joint_velocity(i,i) = 0.0;
+    } else {
+      A_joint_velocity(i,i) = weight_joint_velocity/(1 - std::pow((dq_abs - (q_dot_max(i) - 1.5)), 2)/(std::pow(1.5, 2)));
+    }
+
+      // Debugging printouts
+      // std::cout << "Joint " << i + 1 << ":\n";
+      // std::cout << "  dq_: " << dq_(i) << "\n";
+      // std::cout << "  q_dot_max: " << q_dot_max(i) << "\n";
+      // std::cout << "  k_joint_velocity: " << k_joint_velocity << "\n";
+      // std::cout << "  weight_joint_velocity: " << weight_joint_velocity << "\n";
+      // std::cout << "  f_joint_velocity: " << f_joint_velocity(i) << "\n";
+      // std::cout << "  A_joint_velocity: " << A_joint_velocity(i, i) << "\n";
+  }
+}
+
+
+
+// ---------------------------------------------------------------------------
+// RMP for global damping
+// ---------------------------------------------------------------------------
+std::pair<Eigen::VectorXd, Eigen::MatrixXd> RiemannianMotionPolicy::calculate_global_damping(const Eigen::MatrixXd& Jp_obstacle) {
+  Eigen::VectorXd f_damping = Eigen::VectorXd::Zero(6);
+  Eigen::VectorXd velocity = Jp_obstacle * dq_;
+  f_damping.topRows(3) = -k_damp * velocity * velocity.norm();
+  Eigen::MatrixXd A_damping = Eigen::MatrixXd::Zero(6, 6);
+  Eigen::MatrixXd identity_3 = Eigen::Matrix3d::Identity();
+  A_damping.topLeftCorner(3, 3) = velocity.norm() * identity_3 * weight_damping;
+  //return A_damping and f_damping
+  return std::make_pair(f_damping, A_damping);
+}
+
+
+
+// ---------------------------------------------------------------------------
 // Get global joint acceleration for torque calculation
 // ---------------------------------------------------------------------------
 void RiemannianMotionPolicy::get_ddq(){
@@ -372,6 +371,7 @@ void RiemannianMotionPolicy::get_ddq(){
   Eigen::MatrixXd A_total = Eigen::MatrixXd::Zero(7, 7);
   Eigen::MatrixXd A_total_inv = Eigen::MatrixXd::Zero(7, 7);
   Eigen::VectorXd f_total = Eigen::VectorXd::Zero(7);
+
   for (int i = 0; i < number_obstacles; i++) {
     A_total += jacobian2_obstacle.block(0, 7 * i, 6, 7).transpose() * A_obs_tilde2.block(0, 6 * i, 6, 6) * jacobian2_obstacle.block(0, 7 * i, 6, 7);
     f_total += jacobian2_obstacle.block(0, 7 * i, 6, 7).transpose() * A_obs_tilde2.block(0, 6 * i, 6, 6) * f_obs_tilde2.col(i);
@@ -420,11 +420,10 @@ void RiemannianMotionPolicy::get_ddq(){
 // ---------------------------------------------------------------------------
 // arrayToMatrix for 7D vectors
 // ---------------------------------------------------------------------------
-void RiemannianMotionPolicy::arrayToMatrix(const std::array<double,7>& inputArray, Eigen::Matrix<double,7,1>& resultMatrix)
-{
- for(long unsigned int i = 0; i < 7; ++i){
+void RiemannianMotionPolicy::arrayToMatrix(const std::array<double,7>& inputArray, Eigen::Matrix<double,7,1>& resultMatrix) {
+  for(long unsigned int i = 0; i < 7; ++i){
      resultMatrix(i,0) = inputArray[i];
-   }
+  }
 }
 
 
@@ -432,11 +431,10 @@ void RiemannianMotionPolicy::arrayToMatrix(const std::array<double,7>& inputArra
 // ---------------------------------------------------------------------------
 // arrayToMatrix for 6D vectors
 // ---------------------------------------------------------------------------
-void RiemannianMotionPolicy::arrayToMatrix(const std::array<double,6>& inputArray, Eigen::Matrix<double,6,1>& resultMatrix)
-{
- for(long unsigned int i = 0; i < 6; ++i){
+void RiemannianMotionPolicy::arrayToMatrix(const std::array<double,6>& inputArray, Eigen::Matrix<double,6,1>& resultMatrix) {
+  for(long unsigned int i = 0; i < 6; ++i){
      resultMatrix(i,0) = inputArray[i];
-   }
+  }
 }
 
 
@@ -444,9 +442,9 @@ void RiemannianMotionPolicy::arrayToMatrix(const std::array<double,6>& inputArra
 // ---------------------------------------------------------------------------
 // saturateTorqueRate
 // ---------------------------------------------------------------------------
-Eigen::Matrix<double, 7, 1> RiemannianMotionPolicy::saturateTorqueRate(
-  const Eigen::Matrix<double, 7, 1>& tau_d_calculated,
-  const Eigen::Matrix<double, 7, 1>& tau_J_d_M) {  
+Eigen::Matrix<double, 7, 1> RiemannianMotionPolicy::saturateTorqueRate(const Eigen::Matrix<double, 7, 1>& tau_d_calculated,
+                                                                       const Eigen::Matrix<double, 7, 1>& tau_J_d_M) {  
+  
   Eigen::Matrix<double, 7, 1> tau_d_saturated{};
 
   // std::cout << "tau_d_calculated: " << tau_d_calculated.transpose() << std::endl;
@@ -481,8 +479,7 @@ Eigen::Matrix<double, 7, 1> RiemannianMotionPolicy::saturateTorqueRate(
 // ---------------------------------------------------------------------------
 // command_interface_configuration
 // ---------------------------------------------------------------------------
-controller_interface::InterfaceConfiguration
-RiemannianMotionPolicy::command_interface_configuration() const {
+controller_interface::InterfaceConfiguration RiemannianMotionPolicy::command_interface_configuration() const {
 
   RCLCPP_INFO(get_node()->get_logger(), "Starting command_interface_configuration...");
 
@@ -502,8 +499,7 @@ RiemannianMotionPolicy::command_interface_configuration() const {
 // ---------------------------------------------------------------------------
 // state_interface_configuration
 // ---------------------------------------------------------------------------
-controller_interface::InterfaceConfiguration RiemannianMotionPolicy::state_interface_configuration()
-  const {
+controller_interface::InterfaceConfiguration RiemannianMotionPolicy::state_interface_configuration() const {
 
   RCLCPP_INFO(get_node()->get_logger(), "Starting state_interface_configuration...");
 
@@ -533,11 +529,11 @@ controller_interface::InterfaceConfiguration RiemannianMotionPolicy::state_inter
 // on_init
 // ---------------------------------------------------------------------------
 CallbackReturn RiemannianMotionPolicy::on_init() {
-   UserInputServer input_server_obj(&position_d_target_, &rotation_d_target_, &K, &D, &T);
-   std::thread input_thread(&UserInputServer::main, input_server_obj, 0, nullptr);
-   input_thread.detach();
-   RCLCPP_INFO(get_node()->get_logger(), "on_init completed successfully");
-   return CallbackReturn::SUCCESS;
+  UserInputServer input_server_obj(&position_d_target_, &rotation_d_target_, &K, &D, &T);
+  std::thread input_thread(&UserInputServer::main, input_server_obj, 0, nullptr);
+  input_thread.detach();
+  RCLCPP_INFO(get_node()->get_logger(), "on_init completed successfully");
+  return CallbackReturn::SUCCESS;
 }
 
 
@@ -546,24 +542,6 @@ CallbackReturn RiemannianMotionPolicy::on_init() {
 // on_configure
 // ---------------------------------------------------------------------------
 CallbackReturn RiemannianMotionPolicy::on_configure(const rclcpp_lifecycle::State& /*previous_state*/) {
-  /*franka_robot_model_ = std::make_unique<franka_semantic_components::FrankaRobotModel>(
-  franka_semantic_components::FrankaRobotModel(robot_name_ + "/" + k_robot_model_interface_name,
-                                               robot_name_ + "/" + k_robot_state_interface_name));*/
-                                               
-  /*try {
-    rclcpp::QoS qos_profile(1); // Depth of the message queue
-    qos_profile.reliability(RMW_QOS_POLICY_RELIABILITY_RELIABLE);
-    franka_state_subscriber = get_node()->create_subscription<franka_msgs::msg::FrankaRobotState>(
-    "franka_robot_state_broadcaster/robot_state", qos_profile, 
-    std::bind(&RiemannianMotionPolicy::topic_callback, this, std::placeholders::_1));
-    std::cout << "Succesfully subscribed to robot_state_broadcaster" << std::endl;
-  }
-
-  catch (const std::exception& e) {
-    fprintf(stderr,  "Exception thrown during publisher creation at configure stage with message : %s \n",e.what());
-    return CallbackReturn::ERROR;
-    }*/
-
   RCLCPP_INFO(get_node()->get_logger(), "Starting on_configure...");  
 
   try {
@@ -587,6 +565,7 @@ CallbackReturn RiemannianMotionPolicy::on_configure(const rclcpp_lifecycle::Stat
       RCLCPP_ERROR(get_node()->get_logger(), "Failed to get robot_description parameter.");
       return CallbackReturn::ERROR;
     }
+
     // Parse the URDF using Pinocchio
     pinocchio::urdf::buildModelFromXML(robot_description, model_);
     data_ = pinocchio::Data(model_);
@@ -620,14 +599,12 @@ CallbackReturn RiemannianMotionPolicy::on_configure(const rclcpp_lifecycle::Stat
     RCLCPP_INFO(get_node()->get_logger(), "Reduced model created successfully.");
     end_effector_frame_id_ = model_.getFrameId("fr3_hand_tcp");
     std::cout << "End-effector frame ID: " << end_effector_frame_id_ << std::endl;
-
-    
   }
 
   catch (const std::exception& e) {
     fprintf(stderr,  "Exception thrown during publisher creation at configure stage with message : %s \n",e.what());
     return CallbackReturn::ERROR;
-    }
+  }
 
 
   RCLCPP_DEBUG(get_node()->get_logger(), "on_configure completed successfully");
@@ -639,9 +616,7 @@ CallbackReturn RiemannianMotionPolicy::on_configure(const rclcpp_lifecycle::Stat
 // ---------------------------------------------------------------------------
 // on_activate
 // ---------------------------------------------------------------------------
-CallbackReturn RiemannianMotionPolicy::on_activate(
-  const rclcpp_lifecycle::State& /*previous_state*/) {
-  //franka_robot_model_->assign_loaned_state_interfaces(state_interfaces_); 
+CallbackReturn RiemannianMotionPolicy::on_activate(const rclcpp_lifecycle::State& /*previous_state*/) {
   //Load parameters from yaml file
   RCLCPP_INFO(get_node()->get_logger(), "Starting on_activate...");  
   std::string package_share_directory = ament_index_cpp::get_package_share_directory("riemannian_motion_policy");
@@ -710,21 +685,13 @@ CallbackReturn RiemannianMotionPolicy::on_activate(
         10,  // Queue size
         std::bind(&RiemannianMotionPolicy::closestPointCallback, this, std::placeholders::_1)
     );
-  /*std::array<double, 16> initial_pose = franka_robot_model_->getPoseMatrix(franka::Frame::kEndEffector);
-  Eigen::Affine3d initial_transform(Eigen::Matrix4d::Map(initial_pose.data()));
-  position_d_ = initial_transform.translation();
-  orientation_d_ = Eigen::Quaterniond(initial_transform.rotation());
-  std::cout << "Completed Activation process" << std::endl;
-  std::array<double, 7> gravity_force_vector_array = franka_robot_model_->getGravityForceVector();
-  Eigen::Map<Eigen::Matrix<double, 7, 1>> gravity_force_vector(gravity_force_vector_array.data());
-  tau_gravity = gravity_force_vector;
-  return CallbackReturn::SUCCESS;*/
+
 
   std::cout << "Available frames in the model:" << std::endl;
   for (const auto& frame : model_.frames) {
   std::cout << frame.name << std::endl;
   }
-  std::cout << "ANumber of available Activation:" << model_.nv << std::endl;
+  std::cout << "Number of available velocities:" << model_.nv << std::endl;
   //dq_.resize(model_.nv);
   //q_.resize(model_.nq);   //Dangerous since new values are not initialized
 
@@ -769,9 +736,7 @@ CallbackReturn RiemannianMotionPolicy::on_activate(
 // ---------------------------------------------------------------------------
 // on_deactivate
 // ---------------------------------------------------------------------------
-controller_interface::CallbackReturn RiemannianMotionPolicy::on_deactivate(
-  const rclcpp_lifecycle::State& /*previous_state*/) {
-  //franka_robot_model_->release_interfaces();
+controller_interface::CallbackReturn RiemannianMotionPolicy::on_deactivate(const rclcpp_lifecycle::State& /*previous_state*/) {
   RCLCPP_INFO(get_node()->get_logger(), "Controller deactivated");  
   return CallbackReturn::SUCCESS;
 }
@@ -782,14 +747,14 @@ controller_interface::CallbackReturn RiemannianMotionPolicy::on_deactivate(
 // convertToStdArray
 // ---------------------------------------------------------------------------
 std::array<double, 6> RiemannianMotionPolicy::convertToStdArray(const geometry_msgs::msg::WrenchStamped& wrench) {
-    std::array<double, 6> result;
-    result[0] = wrench.wrench.force.x;
-    result[1] = wrench.wrench.force.y;
-    result[2] = wrench.wrench.force.z;
-    result[3] = wrench.wrench.torque.x;
-    result[4] = wrench.wrench.torque.y;
-    result[5] = wrench.wrench.torque.z;
-    return result;
+  std::array<double, 6> result;
+  result[0] = wrench.wrench.force.x;
+  result[1] = wrench.wrench.force.y;
+  result[2] = wrench.wrench.force.z;
+  result[3] = wrench.wrench.torque.x;
+  result[4] = wrench.wrench.torque.y;
+  result[5] = wrench.wrench.torque.z;
+  return result;
 }
 
 
@@ -808,13 +773,12 @@ void RiemannianMotionPolicy::topic_callback(const std::shared_ptr<franka_msgs::m
 // ---------------------------------------------------------------------------
 // callback for resetting the robot to home position
 // ---------------------------------------------------------------------------
-void RiemannianMotionPolicy::reference_pose_callback(const geometry_msgs::msg::Pose::SharedPtr msg)
-{
-    // Handle the incoming pose message
-    std::cout << "received reference posistion as " <<  msg->position.x << ", " << msg->position.y << ", " << msg->position.z << std::endl;
-    position_d_target_ << msg->position.x, msg->position.y,msg->position.z;
-    orientation_d_target_.coeffs() << msg->orientation.x, msg->orientation.y, msg->orientation.z, msg->orientation.w;
-    // You can add more processing logic here
+void RiemannianMotionPolicy::reference_pose_callback(const geometry_msgs::msg::Pose::SharedPtr msg) {
+  // Handle the incoming pose message
+  std::cout << "received reference posistion as " <<  msg->position.x << ", " << msg->position.y << ", " << msg->position.z << std::endl;
+  position_d_target_ << msg->position.x, msg->position.y,msg->position.z;
+  orientation_d_target_.coeffs() << msg->orientation.x, msg->orientation.y, msg->orientation.z, msg->orientation.w;
+  // You can add more processing logic here
 }
 
 
@@ -832,32 +796,33 @@ void RiemannianMotionPolicy::closestPointCallback(const messages_fr3::msg::Close
     
     // Handle the closest point loop for each obstacle
     if (number_obstacles > 0) {
-        d_obs2.resize(3, number_obstacles);
-        d_obs3.resize(3, number_obstacles);
-        d_obs4.resize(3, number_obstacles);
-        d_obs5.resize(3, number_obstacles);
-        d_obs6.resize(3, number_obstacles);
-        d_obs7.resize(3, number_obstacles);
-        d_obshand.resize(3, number_obstacles);
-        d_obsEE.resize(3, number_obstacles);
-        jacobian_array2.resize(42 * number_obstacles);
-        jacobian_array3.resize(42 * number_obstacles);
-        jacobian_array4.resize(42 * number_obstacles);
-        jacobian_array5.resize(42 * number_obstacles);
-        jacobian_array6.resize(42 * number_obstacles);
-        jacobian_array7.resize(42 * number_obstacles);
-        jacobian_arrayhand.resize(42 * number_obstacles);
-        jacobian_arrayEE.resize(42 * number_obstacles);
-        jacobian2_obstacle.resize(6, 7 * number_obstacles);
-        jacobian3_obstacle.resize(6, 7 * number_obstacles);
-        jacobian4_obstacle.resize(6, 7 * number_obstacles);
-        jacobian5_obstacle.resize(6, 7 * number_obstacles);
-        jacobian6_obstacle.resize(6, 7 * number_obstacles);
-        jacobian7_obstacle.resize(6, 7 * number_obstacles);
-        jacobianhand_obstacle.resize(6, 7 * number_obstacles);
-        jacobianEE_obstacle.resize(6, 7 * number_obstacles);
+      d_obs2.resize(3, number_obstacles);
+      d_obs3.resize(3, number_obstacles);
+      d_obs4.resize(3, number_obstacles);
+      d_obs5.resize(3, number_obstacles);
+      d_obs6.resize(3, number_obstacles);
+      d_obs7.resize(3, number_obstacles);
+      d_obshand.resize(3, number_obstacles);
+      d_obsEE.resize(3, number_obstacles);
+      jacobian_array2.resize(42 * number_obstacles);
+      jacobian_array3.resize(42 * number_obstacles);
+      jacobian_array4.resize(42 * number_obstacles);
+      jacobian_array5.resize(42 * number_obstacles);
+      jacobian_array6.resize(42 * number_obstacles);
+      jacobian_array7.resize(42 * number_obstacles);
+      jacobian_arrayhand.resize(42 * number_obstacles);
+      jacobian_arrayEE.resize(42 * number_obstacles);
+      jacobian2_obstacle.resize(6, 7 * number_obstacles);
+      jacobian3_obstacle.resize(6, 7 * number_obstacles);
+      jacobian4_obstacle.resize(6, 7 * number_obstacles);
+      jacobian5_obstacle.resize(6, 7 * number_obstacles);
+      jacobian6_obstacle.resize(6, 7 * number_obstacles);
+      jacobian7_obstacle.resize(6, 7 * number_obstacles);
+      jacobianhand_obstacle.resize(6, 7 * number_obstacles);
+      jacobianEE_obstacle.resize(6, 7 * number_obstacles);
     }
-    for (int i = 0; i < number_obstacles; i++){
+
+    for (int i = 0; i < number_obstacles; i++) {
       d_obs2.col(i) << msg->frame2x[i], msg->frame2y[i], msg->frame2z[i];
       d_obs3.col(i) << msg->frame3x[i], msg->frame3y[i], msg->frame3z[i];
       d_obs4.col(i) << msg->frame4x[i], msg->frame4y[i], msg->frame4z[i];
@@ -929,6 +894,7 @@ void RiemannianMotionPolicy::jointStateCallback(const sensor_msgs::msg::JointSta
         for (size_t i = 0; i < 7; ++i) {
             tau_J(i) = msg->effort[i];  // Extract the measured joint torques
         }
+
     } else {
         RCLCPP_ERROR(get_node()->get_logger(), "JointState message has incorrect effort size");
     }
@@ -972,14 +938,11 @@ controller_interface::return_type RiemannianMotionPolicy::update(const rclcpp::T
   pinocchio::getFrameJacobian(model_, data_, end_effector_frame_id_, pinocchio::LOCAL_WORLD_ALIGNED, jacobian);
 
   pinocchio::updateFramePlacements(model_, data_);
-  Eigen::MatrixXd g = pinocchio::computeGeneralizedGravity(model_, data_, q_);
+  Eigen::VectorXd g = pinocchio::computeGeneralizedGravity(model_, data_, q_);
   coriolis = dynamic_torques - g;
  
-  //jacobian_array =  franka_robot_model_->getZeroJacobian(franka::Frame::kEndEffector);
-  //std::array<double, 16> pose = franka_robot_model_->getPoseMatrix(franka::Frame::kEndEffector);
   Eigen::Map<Eigen::Matrix<double, 7, 1>> coriolis(coriolis_array.data());
   Eigen::Map<Eigen::Matrix<double, 7, 1>> gravity_force_vector(gravity_force_vector_array.data());
-  //jacobian = Eigen::Map<Eigen::Matrix<double, 6, 7>> (jacobian_array.data());
   Eigen::Affine3d transform(Eigen::Matrix4d::Map(pose.data()));
   transform.linear() = data_.oMf[end_effector_frame_id_].rotation();  // Extract rotation
   transform.translation() = data_.oMf[end_effector_frame_id_].translation();  // Extract translation
@@ -987,7 +950,6 @@ controller_interface::return_type RiemannianMotionPolicy::update(const rclcpp::T
   // pseudoInverse(jacobian.transpose(), jacobian_transpose_pinv);
   pseudoInverse(jacobian, jacobian_pinv);
   Eigen::Map<Eigen::Matrix<double, 7, 7>> M(mass.data());
-  //Eigen::Affine3d transform(Eigen::Matrix4d::Map(pose.data()));
   Eigen::Vector3d position(transform.translation());
   //std::cout << "Current Position: " << position.transpose() << std::endl;
   Eigen::Quaterniond orientation(transform.rotation());
@@ -1002,6 +964,7 @@ controller_interface::return_type RiemannianMotionPolicy::update(const rclcpp::T
   if (orientation_d_.coeffs().dot(orientation.coeffs()) < 0.0) {
     orientation.coeffs() << -orientation.coeffs();
   }
+
   Eigen::Quaterniond error_quaternion(orientation.inverse() * orientation_d_);
   error.tail(3) << error_quaternion.x(), error_quaternion.y(), error_quaternion.z();
   error.tail(3) << -transform.rotation() * error.tail(3);
@@ -1036,7 +999,7 @@ controller_interface::return_type RiemannianMotionPolicy::update(const rclcpp::T
   // std::cout << "dq_:\n" << dq_.transpose() << std::endl;
   // std::cout << "x_dd_des:\n" << x_dd_des.transpose() << std::endl;
   
-  if (number_obstacles != 0){
+  if (number_obstacles != 0) {
     f_obs_tilde2.resize(6, number_obstacles);
     A_obs_tilde2.resize(6, 6 * number_obstacles);
     f_obs_tilde3.resize(6, number_obstacles);
@@ -1053,7 +1016,8 @@ controller_interface::return_type RiemannianMotionPolicy::update(const rclcpp::T
     A_obs_tildehand.resize(6, 6 * number_obstacles);
     f_obs_tildeEE.resize(6, number_obstacles);
     A_obs_tildeEE.resize(6, 6 * number_obstacles);
-    for (int i = 0; i < number_obstacles; i++){
+
+    for (int i = 0; i < number_obstacles; i++) {
       f_obs_tilde2.col(i) = calculate_f_obstacle(d_obs2.col(i), Jp_obstacle2.block(0, 7 * i, 3, 7));
       A_obs_tilde2.block(0, 6 * i, 6, 6) = calculate_A_obstacle(d_obs2.col(i), f_obs_tilde2.col(i), 0.5, Jp_obstacle2.block(0, 7 * i, 3, 7));
       f_obs_tilde3.col(i) = calculate_f_obstacle(d_obs3.col(i), Jp_obstacle3.block(0, 7 * i, 3, 7));
@@ -1071,6 +1035,7 @@ controller_interface::return_type RiemannianMotionPolicy::update(const rclcpp::T
       f_obs_tildeEE.col(i) = calculate_f_obstacle(d_obsEE.col(i), Jp_obstacleEE.block(0, 7 * i, 3, 7));
       A_obs_tildeEE.block(0, 6 * i, 6, 6) = calculate_A_obstacle(d_obsEE.col(i), f_obs_tildeEE.col(i), 0.5, Jp_obstacleEE.block(0, 7 * i, 3, 7));  
     }
+
   } else {
     f_obs_tilde2 = Eigen::MatrixXd::Zero(6,1);
     A_obs_tilde2 = Eigen::MatrixXd::Zero(6,6);
@@ -1089,15 +1054,19 @@ controller_interface::return_type RiemannianMotionPolicy::update(const rclcpp::T
     f_obs_tildeEE = Eigen::MatrixXd::Zero(6,1);
     A_obs_tildeEE = Eigen::MatrixXd::Zero(6,6);
   }
+
   auto [f_dampingEE, A_dampingEE] = calculate_global_damping(jacobian.topRows(3));
   rmp_joint_limit_avoidance();
   rmp_joint_velocity_limits();
+
   if(number_obstacles > 0){
     if(position_d_target_(0)< 0){
       q_0(0) = -2.4;
     }
+
     rmp_cspacetarget();
   }
+
   get_ddq();
   
   // Calculate the desired torque
@@ -1142,12 +1111,13 @@ controller_interface::return_type RiemannianMotionPolicy::update(const rclcpp::T
   }
 
   // Add logging logic here
+  std::cout << outcounter << std::endl;
   if (outcounter % 1000 == 0) { // Log periodically
     std::cout << "=== Debugging Information ===" << std::endl;
     std::cout << "ddq_: " << ddq_.transpose() << std::endl;
     std::cout << "error_pose: " << error.transpose() << std::endl;
     std::cout << "tau_d: " << tau_d.transpose() << std::endl;
-    std::cout << "gravity_torques: " << gravity_force_vector.transpose() << std::endl;
+    std::cout << "gravity_torques: " << g.transpose() << std::endl;
     std::cout << "coriolis: " << coriolis.transpose() << std::endl;
     std::cout << "=============================" << std::endl;
   }
@@ -1163,20 +1133,19 @@ controller_interface::return_type RiemannianMotionPolicy::update(const rclcpp::T
 // callback for resetting the robot to home position
 // ---------------------------------------------------------------------------
 //Simulation from
-void RiemannianMotionPolicy::reset_to_home_callback(
-    const std::shared_ptr<std_srvs::srv::Trigger::Request> request,
-    std::shared_ptr<std_srvs::srv::Trigger::Response> response)
-{
-    // Set home position - adjust these coordinates to your robot's safe home position
-    position_d_target_ << 0.3, 0.0, 0.6;  // x, y, z in meters
-    
-    // Set home orientation (upright)
-    orientation_d_target_.coeffs() << 0.0, 0.0, 0.0, 1.0;  // x, y, z, w quaternion
-    
-    response->success = true;
-    response->message = "Robot reset to home position";
-    
-    RCLCPP_INFO(get_node()->get_logger(), "Robot reset to home position via service");
+void RiemannianMotionPolicy::reset_to_home_callback(const std::shared_ptr<std_srvs::srv::Trigger::Request> request,
+                                                    std::shared_ptr<std_srvs::srv::Trigger::Response> response) {
+  
+  // Set home position - adjust these coordinates to your robot's safe home position
+  position_d_target_ << 0.3, 0.0, 0.6;  // x, y, z in meters
+  
+  // Set home orientation (upright)
+  orientation_d_target_.coeffs() << 0.0, 0.0, 0.0, 1.0;  // x, y, z, w quaternion
+  
+  response->success = true;
+  response->message = "Robot reset to home position";
+  
+  RCLCPP_INFO(get_node()->get_logger(), "Robot reset to home position via service");
 }
 //Simulation to
 

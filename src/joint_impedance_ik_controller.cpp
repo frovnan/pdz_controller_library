@@ -303,7 +303,7 @@ controller_interface::return_type JointImpedanceIkController::update(
 
   update_joint_states();
 
-  // --- FK ---
+  // --- Forward Kinematics ---
   pinocchio::forwardKinematics(model_, data_, q_);
   pinocchio::updateFramePlacements(model_, data_);
 
@@ -333,7 +333,7 @@ controller_interface::return_type JointImpedanceIkController::update(
   
   Eigen::Matrix<double, 6, 7> jacobian_7 = jacobian.leftCols(7); // Extract the part of the Jacobian corresponding to the 7 arm joints
 
-  // --- IDK ---
+  // --- Inverse Differential Kinematics ---
   pseudoInverse(jacobian_7, jacobian_pinv, true);
 
   if (!jacobian_pinv.allFinite()) {
@@ -374,7 +374,7 @@ controller_interface::return_type JointImpedanceIkController::update(
     command_interfaces_[i].set_value(tau_d_calculated(i));
   }
 
-
+  // std::cout << counter_ << std::endl;
   if (counter_ % 1000 == 0) {
     std::cout << "-------------------------------------------------------------------------------------" << std::endl;
     //std::cout << "friction torque: " << tau_friction.transpose() << std::endl;

@@ -5,6 +5,7 @@
 A ROS 2 Humble package that contains various works by students from Pd|Z for the Franka Emika FR3 robot arm. 
 
 These include:
+
 * [Cartesian Impedance Controller](https://github.com/LucasG2001/cartesian_impedance_control)
 * [Admittance Controller](https://github.com/LucasG2001/admittance_control)
 * Joint Impedance Controller
@@ -25,6 +26,7 @@ These include:
 ## Download
 
 ### Step 1: Clone the repository
+
 Change your current directory in the terminal to **/franka_ros2_ws/src** and clone the repository into this folder.
 
 ```bash
@@ -36,6 +38,7 @@ source install/setup.bash
 ```
 
 ### Step 2: Modify configuration
+
 Navigate to the 'controllers.yaml' file located in 'franka_bringup/config/', and add the following lines:
 
 ```yaml
@@ -60,6 +63,7 @@ Navigate to the 'controllers.yaml' file located in 'franka_bringup/config/', and
       admittance_controller:
         type: pdz_controller_library/AdmittanceController
 ```
+
 If you plan on using Gazebo, do the same in the 'franka_gazebo_controllers.yaml' inside 'franka_gazebo/config/'.
 Further down, you will need to add these lines:
 
@@ -140,9 +144,11 @@ Further down, you will need to add these lines:
     ros__parameters:
       robot_type: "fr3"
 ```
+
 The numbers under the impedance controllers are the stiffness and damping gains for each task-space DoF (in the case of cartesian impedance) or joint-space DoF (in the case of joint impedace). Change them to suit your needs.
 
 ### Step 3: Clone the Messages Package
+
 Clone the [messages_fr3](https://github.com/acaviezel/messages_fr3) package into the 'src' folder of your workspace.
 
 ```bash
@@ -151,12 +157,15 @@ git clone https://github.com/acaviezel/messages_fr3.git
 ```
 
 Navigate to the 'CMakeLists.txt' file in the 'messages_fr3' package and add the following line in the 'rosidl_generate_interfaces' section:
+
 ```txt
 "srv/SetForce.srv"
 ```
+
 It is needed for the Hybrid Force/Impedance control functionality.
 
 ### Step 4: Build the workspace
+
 Change your current directory in the terminal back to  **/franka_ros2_ws** and build the package or the entire workspace.
 
   ```bash
@@ -165,10 +174,11 @@ Change your current directory in the terminal back to  **/franka_ros2_ws** and b
   ```
 
 ### Step 5: Update '.bashrc' file
+
 In order to not have to source the setup file after every build, you can add the following line at the end of your .bashrc file (which you can access by executing `nano .bashrc` in your home directory): 
 
 ```bash
 source /home/<user>/franka_ros2_ws/install/setup.bash
 ```
 
-## 
+##

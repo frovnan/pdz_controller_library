@@ -145,7 +145,7 @@ public:
     void calculate_tau_gravity(const Eigen::Map<Eigen::Matrix<double, 7, 1>>& coriolis, const Eigen::Map<Eigen::Matrix<double, 7, 1>>& gravity_force_vector, const Eigen::Matrix<double, 6, 7>& jacobian);
     //Simulation
     void reset_to_home_callback(const std::shared_ptr<std_srvs::srv::Trigger::Request> request, std::shared_ptr<std_srvs::srv::Trigger::Response> response);
-
+    
     Eigen::VectorXd coriolis;
     std::array<double, 7> coriolis_array;
     std::array<double, 7> gravity_force_vector_array;

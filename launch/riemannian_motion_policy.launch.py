@@ -97,7 +97,7 @@ def generate_launch_description():
     )
 
     # Define the absolute path to the obstacle URDF
-    pkg_path = get_package_share_directory('riemannian_motion_policy')
+    pkg_path = get_package_share_directory('pdz_controller_library')
     obstacle_urdf_path = os.path.join(pkg_path, 'urdf', 'Objects.urdf')
 
     spawn_obstacle = Node(

@@ -13,3 +13,9 @@ controller_manager:
 
     riemannian_motion_policy:
       type: pdz_controller_library/RiemannianMotionPolicy
+
+    impedance_admittance_hybrid_controller:
+      type: pdz_controller_library/ImpedanceAdmittanceHybridController
+    
+    admittance_controller:
+      type: pdz_controller_library/AdmittanceController

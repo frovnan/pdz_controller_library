@@ -113,8 +113,7 @@ inline void pseudoInverse(const Eigen::MatrixXd& M_, Eigen::MatrixXd& M_pinv_, b
 // ---------------------------------------------------------------------------
 // command_interface_configuration
 // ---------------------------------------------------------------------------
-controller_interface::InterfaceConfiguration
-CartesianImpedanceController::command_interface_configuration() const {
+controller_interface::InterfaceConfiguration CartesianImpedanceController::command_interface_configuration() const {
   controller_interface::InterfaceConfiguration config;
   config.type = controller_interface::interface_configuration_type::INDIVIDUAL;
   for (int i = 1; i <= num_joints; ++i) {
@@ -182,17 +181,16 @@ CallbackReturn CartesianImpedanceController::on_configure(const rclcpp_lifecycle
       return CallbackReturn::ERROR;
     }
     // Parse the URDF using Pinocchio
-    //The robot_description parameter contains the URDF as a string.
-    //The buildModelFromXML function parses the URDF and initializes the Pinocchio model.
+    // The robot_description parameter contains the URDF as a string.
+    // The buildModelFromXML function parses the URDF and initializes the Pinocchio model.
     pinocchio::urdf::buildModelFromXML(robot_description, model_);
     data_ = pinocchio::Data(model_);
     RCLCPP_INFO(get_node()->get_logger(), "Pinocchio model parsed successfully.");
   
-    //// Set the end-effector frame ID
-    //// Replace "panda_hand" with the name of your robot's end-effector frame as defined in the URDF.
-    //// This frame is used for Cartesian impedance control.
-    end_effector_frame_id_ = model_.getFrameId("fr3_hand"); // Replace "panda_hand" with your actual frame name
-    //RCLCPP_INFO(get_node()->get_logger(), "Pinocchio model loaded successfully.");
+    // Set the end-effector frame ID
+    // This frame is used for Cartesian impedance control.
+    end_effector_frame_id_ = model_.getFrameId("fr3_hand");
+    RCLCPP_INFO(get_node()->get_logger(), "Pinocchio model loaded successfully.");
   } 
   catch (const std::exception& e) {
     RCLCPP_ERROR(get_node()->get_logger(), "Failed to load Pinocchio model: %s", e.what());
@@ -368,6 +366,7 @@ controller_interface::return_type CartesianImpedanceController::update(const rcl
     command_interfaces_[i].set_value(tau_d(i));
   }
   
+  // std::cout << outcounter << std::endl;
   if (outcounter % 1000 == 0){
     std::cout << "-------------------------------------------------------------------------------------" << std::endl;
     // std::cout << "F_ext_robot [N]" << std::endl;

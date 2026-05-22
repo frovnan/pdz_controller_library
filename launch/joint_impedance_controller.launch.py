@@ -1,10 +1,13 @@
+import os
+
+from ament_index_python import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, ExecuteProcess, RegisterEventHandler
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
-from launch.event_handlers import OnProcessExit
+#from launch.event_handlers import OnProcessExit
 
 
 def generate_launch_description():
@@ -23,13 +26,14 @@ def generate_launch_description():
     use_rviz = LaunchConfiguration(use_rviz_parameter_name)
     
     # Execute the set_load.sh script
+    pkg_path = get_package_share_directory('pdz_controller_library')
     set_load = ExecuteProcess(
-        cmd=['/home/lucas/franka_ros2_ws/src/cartesian_impedance_control/launch/set_load.sh'],
+        cmd=[os.path.join(pkg_path, 'launch', 'set_load.sh')],
         output='screen',
     )
 
     set_torque_limits =   ExecuteProcess(
-            cmd=['/home/lucas/franka_ros2_ws/src/cartesian_impedance_control/launch/set_force_torque_limits.sh'],  # Reference to the shell script in the same folder
+            cmd=[os.path.join(pkg_path, 'launch', 'set_force_torque_limits.sh')],  # Reference to the shell script in the same folder
             output='screen',
         )
     # Start the cartesian_impedance_controller after set_load.sh finishes
@@ -74,14 +78,18 @@ def generate_launch_description():
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource([PathJoinSubstitution(
                 [FindPackageShare('franka_bringup'), 'launch', 'franka.launch.py'])]),
-            launch_arguments={robot_ip_parameter_name: robot_ip,
-                              arm_id_parameter_name: arm_id,
-                              load_gripper_parameter_name: load_gripper,
-                              use_fake_hardware_parameter_name: use_fake_hardware,
-                              fake_sensor_commands_parameter_name: fake_sensor_commands,
-                              use_rviz_parameter_name: use_rviz
+            launch_arguments={'robot_ip': robot_ip,
+                              'robot_type': arm_id,
+                              'load_gripper': load_gripper,
+                              'use_fake_hardware': use_fake_hardware,
+                              'fake_sensor_commands': fake_sensor_commands,
+                              'use_rviz': use_rviz
                               }.items(),
         ),
+
+        set_load,
+        
+        set_torque_limits,
         
          Node(
             package='controller_manager',

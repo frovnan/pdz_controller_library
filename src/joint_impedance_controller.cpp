@@ -38,8 +38,9 @@ void JointImpedanceController::reference_configuration_callback(const trajectory
       return;
     }
 
-    RCLCPP_INFO(get_node()->get_logger(), "Received reference joint configuration.");
+    RCLCPP_INFO(get_node()->get_logger(), "Received reference joint configuration as:");
     for (int i = 0; i < num_joints; ++i) {
+      std::cout << "joint " << (i + 1) << ": " << msg->positions[i] << std::endl;
       q_goal(i) = msg->positions[i];
     }
 }
@@ -265,6 +266,7 @@ controller_interface::return_type JointImpedanceController::update(
     command_interfaces_[i].set_value(tau_d_calculated(i));
   }
 
+  // std::cout << counter_ << std::endl;
   if (counter_ % 1000 == 0) {
     std::cout << "-------------------------------------------------------------------------------------" << std::endl;
     std::cout << "coriolis compensation: " << coriolis.transpose() << std::endl;
