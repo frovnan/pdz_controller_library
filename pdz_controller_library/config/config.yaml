@@ -1,0 +1,46 @@
+# RMP Obstacle Avoidance
+obstacle_avoidance:
+  eta_rep: 100.0  #if moving obstacle, eta_rep = 15.0
+  mu_rep: 0.02    #if moving obstacle, mu_rep = 0.5
+  eta_damp: 50.0
+  mu_damp: 0.04
+  epsilon: 0.001
+  weight_obstacle: 1.0
+
+# RMP Attractor
+attractor:
+  alpha_min: 0.001
+  sigma_a: 0.005
+  sigma_b: 0.008
+  b: 30.0         #if moving obstacle, b = 10.0
+  sigma_o: 0.008
+  b_axis: 0.1
+  weight_attractor: 0.1
+
+# RMP Global Damping
+global_damping:
+  k_damp: 300
+  weight_damping: 1.0
+
+# RMP Velocity Limits
+velocity_limits:
+  k_joint_velocity: 100.0
+  weight_joint_velocity: 1.0
+
+# RMP Joint Limits
+joint_limits:
+  kp_joint_limits: 1.0 #k_p
+  kd_joint_limits: 2.0 #k_d
+  metric_length_scale: 0.01 #l_m
+  epsilon_joint_limits: 0.001 #epsilon_m
+  metric_velocity_length_scale: 0.01  #v_m
+  accel_exploder_length_scale: 0.1 #l_p
+  accel_eps: 0.01 #epsilon_p
+  weight_joint_limits: 0.25  #can be increased if the robot is moving too fast
+ 
+# RMP C-space Target
+c_space_target:
+  kp_c_space_target: [4.5, 4.5,4.5, 4.5, 4.5,4.5, 2.3] #k_p
+  kd_c_space_target: [6, 6, 6, 6, 6, 6, 9] #k_d
+  theta: 0.5 #theta
+  weight_c_space_target: 0.25
