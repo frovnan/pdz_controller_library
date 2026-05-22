@@ -143,12 +143,18 @@ Further down, you will need to add these lines:
 The numbers under the impedance controllers are the stiffness and damping gains for each task-space DoF (in the case of cartesian impedance) or joint-space DoF (in the case of joint impedace). Change them to suit your needs.
 
 ### Step 3: Clone the Messages Package
-Clone the 'messages_fr3' package into the 'src' folder of your workspace.
+Clone the [messages_fr3](https://github.com/acaviezel/messages_fr3) package into the 'src' folder of your workspace.
 
 ```bash
 cd franka_ros2_ws/src
 git clone https://github.com/acaviezel/messages_fr3.git 
 ```
+
+Navigate to the 'CMakeLists.txt' file in the 'messages_fr3' package and add the following line in the 'rosidl_generate_interfaces' section:
+```txt
+"srv/SetForce.srv"
+```
+It is needed for the Hybrid Force/Impedance control functionality.
 
 ### Step 4: Build the workspace
 Change your current directory in the terminal back to  **/franka_ros2_ws** and build the package or the entire workspace.
