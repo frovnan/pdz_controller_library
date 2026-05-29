@@ -19,7 +19,8 @@ These include:
 
 * Ubuntu 22.04 LTS+ (Linux)
 * [ROS 2 Humble](https://docs.ros.org/en/humble/Installation/Ubuntu-Install-Debians.html)
-* [franka_ros2 v0.13.1](https://support.franka.de/docs/franka_ros2.html)
+* franka_ros2 >= v2.1.0
+* libfranka >= v0.18.0
 
 ---
 
