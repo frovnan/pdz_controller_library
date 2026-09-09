@@ -339,21 +339,31 @@ void AdmittanceController::updateJointStates() {
 // ---------------------------------------------------------------------------
 controller_interface::return_type AdmittanceController::update(const rclcpp::Time& /*time*/, const rclcpp::Duration& period) {  
 
+  // Mass Matrix M, Coriolis Matrix C, Jacobian J, Gravity g, and Pose
   std::array<double, 49> mass = franka_robot_model_->getMassMatrix();
+  M = Eigen::Map<Eigen::Matrix<double, 7, 7>>(mass.data());
+
   std::array<double, 7> coriolis_array = franka_robot_model_->getCoriolisForceVector();
-  std::array<double, 42> jacobian_array =  franka_robot_model_->getZeroJacobian(franka::Frame::kEndEffector);
-  std::array<double, 16> pose = franka_robot_model_->getPoseMatrix(franka::Frame::kEndEffector);
   Eigen::Map<Eigen::Matrix<double, 7, 1>> coriolis(coriolis_array.data());
+
+  std::array<double, 42> jacobian_array =  franka_robot_model_->getZeroJacobian(franka::Frame::kEndEffector);
   jacobian = Eigen::Map<Eigen::Matrix<double, 6, 7>> (jacobian_array.data());
+
+  std::array<double, 7> gravity_array = franka_robot_model_->getGravityForceVector();  
+  Eigen::Map<Eigen::Matrix<double, 7, 1>> gravity(gravity_array.data());
+
+  std::array<double, 16> pose = franka_robot_model_->getPoseMatrix(franka::Frame::kEndEffector);
+  
+
   pseudoInverse(jacobian.transpose(), jacobian_transpose_pinv);
   pseudoInverse(jacobian, jacobian_pinv); 
-  M = Eigen::Map<Eigen::Matrix<double, 7, 7>>(mass.data());
+
   Lambda = (jacobian * M.inverse() * jacobian.transpose()).inverse();
   updateJointStates(); 
   Theta = Lambda;
   D = 2.05* K.cwiseSqrt() * Lambda.diagonal().cwiseSqrt().asDiagonal(); // Admittance control law to compute desired trajectory
   w = jacobian * dq_; // cartesian velocity
-  Eigen::Affine3d transform(Eigen::Matrix4d::Map(pose.data()));
+  Eigen::Affine3d transform(Eigen::Matrix4d::Map(pose.data())); // Convert the pose array to an Eigen affine transformation
   Eigen::Vector3d position(transform.translation());
   Eigen::Quaterniond orientation(transform.rotation());
 
@@ -427,7 +437,7 @@ controller_interface::return_type AdmittanceController::update(const rclcpp::Tim
   }
 
   // Force control and filtering
-  N = (Eigen::MatrixXd::Identity(7, 7) - jacobian_pinv * jacobian);
+  N = (Eigen::MatrixXd::Identity(7, 7) - jacobian_pinv * jacobian); // Nullspace projection matrix
   
   Eigen::VectorXd tau_nullspace(7), tau_d(7);
   tau_nullspace << N * (nullspace_stiffness_ * config_control * (q_d_nullspace_ - q_) - //if config_control = true we control the whole robot configuration
@@ -435,7 +445,7 @@ controller_interface::return_type AdmittanceController::update(const rclcpp::Tim
 
   calculate_tau_friction(); //Gets friction forces for current state
   tau_admittance = jacobian.transpose() * Sm * (F_admittance /*+ F_repulsion + F_potential*/);
-  auto tau_total = (tau_admittance + tau_nullspace + coriolis + tau_friction); //add nullspace and coriolis components to desired torque
+  auto tau_total = (tau_admittance + tau_nullspace + coriolis + tau_friction /*+ gravity*/); //add nullspace, coriolis, and gravity components to desired torque
   tau_d << tau_total;
   tau_d << saturateTorqueRate(tau_d, tau_J_d_M);  // Saturate torque rate to avoid discontinuities
   tau_J_d_M = tau_d;

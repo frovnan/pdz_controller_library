@@ -372,6 +372,7 @@ void RiemannianMotionPolicy::get_ddq(){
   Eigen::MatrixXd A_total_inv = Eigen::MatrixXd::Zero(7, 7);
   Eigen::VectorXd f_total = Eigen::VectorXd::Zero(7);
 
+  // Pullback of task-space RMPs
   for (int i = 0; i < number_obstacles; i++) {
     A_total += jacobian2_obstacle.block(0, 7 * i, 6, 7).transpose() * A_obs_tilde2.block(0, 6 * i, 6, 6) * jacobian2_obstacle.block(0, 7 * i, 6, 7);
     f_total += jacobian2_obstacle.block(0, 7 * i, 6, 7).transpose() * A_obs_tilde2.block(0, 6 * i, 6, 6) * f_obs_tilde2.col(i);
@@ -532,6 +533,8 @@ CallbackReturn RiemannianMotionPolicy::on_init() {
   UserInputServer input_server_obj(&position_d_target_, &rotation_d_target_, &K, &D, &T);
   std::thread input_thread(&UserInputServer::main, input_server_obj, 0, nullptr);
   input_thread.detach();
+  pose_error_pub_ = get_node()->create_publisher<std_msgs::msg::Float64MultiArray>(
+      "~/pose_error", rclcpp::QoS(10));
   RCLCPP_INFO(get_node()->get_logger(), "on_init completed successfully");
   return CallbackReturn::SUCCESS;
 }
@@ -949,7 +952,7 @@ controller_interface::return_type RiemannianMotionPolicy::update(const rclcpp::T
   
   // pseudoInverse(jacobian.transpose(), jacobian_transpose_pinv);
   pseudoInverse(jacobian, jacobian_pinv);
-  Eigen::Map<Eigen::Matrix<double, 7, 7>> M(mass.data());
+  // Eigen::Map<Eigen::Matrix<double, 7, 7>> M(mass.data());
   Eigen::Vector3d position(transform.translation());
   //std::cout << "Current Position: " << position.transpose() << std::endl;
   Eigen::Quaterniond orientation(transform.rotation());
@@ -970,6 +973,10 @@ controller_interface::return_type RiemannianMotionPolicy::update(const rclcpp::T
   error.tail(3) << -transform.rotation() * error.tail(3);
   error.head(3) << position - position_d_;
 
+  std_msgs::msg::Float64MultiArray pose_error_msg;
+  pose_error_msg.data.assign(error.data(), error.data() + error.size());
+  pose_error_pub_->publish(pose_error_msg);
+
   // Debugging printouts for error
   // std::cout << "=== Debugging Error ===" << std::endl;
   // std::cout << "Current Position: " << position.transpose() << std::endl;
@@ -985,6 +992,7 @@ controller_interface::return_type RiemannianMotionPolicy::update(const rclcpp::T
   //d_obs1 = d_obs_prev1 * 0.99 + d_obs1 * 0.01;
 
   // Lambda = (jacobian * M.inverse() * jacobian.transpose()).inverse();
+  M.triangularView<Eigen::StrictlyLower>() = M.transpose().triangularView<Eigen::StrictlyLower>(); // Ensure M is symmetric
   Eigen::MatrixXd JM_pinv = M.ldlt().solve(jacobian.transpose());
   Lambda = (jacobian * JM_pinv).ldlt().solve(Eigen::MatrixXd::Identity(6, 6)); // More efficient and numerically stable way to compute Lambda
   x_dd_des = (-K_RMP * (error) - D_RMP* jacobian * dq_);
@@ -1102,8 +1110,7 @@ controller_interface::return_type RiemannianMotionPolicy::update(const rclcpp::T
 
   // Check if 5 seconds have passed since the last log
   if (duration_cast<seconds>(current_time - last_log_time).count() >= 0.1) {
-    last_log_time = current_time;  // Reset the last log time
-        
+    last_log_time = current_time;  // Reset the last log time    
   }
   
   for (size_t i = 0; i < 7; ++i) {
@@ -1111,14 +1118,16 @@ controller_interface::return_type RiemannianMotionPolicy::update(const rclcpp::T
   }
 
   // Add logging logic here
-  std::cout << outcounter << std::endl;
+  // std::cout << outcounter << std::endl;
   if (outcounter % 1000 == 0) { // Log periodically
     std::cout << "=== Debugging Information ===" << std::endl;
     std::cout << "ddq_: " << ddq_.transpose() << std::endl;
-    std::cout << "error_pose: " << error.transpose() << std::endl;
+    std::cout << "pose error: " << error.transpose() << std::endl;
     std::cout << "tau_d: " << tau_d.transpose() << std::endl;
-    std::cout << "gravity_torques: " << g.transpose() << std::endl;
-    std::cout << "coriolis: " << coriolis.transpose() << std::endl;
+    std::cout << "gravity torques: " << g.transpose() << std::endl;
+    std::cout << "coriolis torques: " << coriolis.transpose() << std::endl;
+    //std::cout << "mass matrix: \n" << M << std::endl;
+    std::cout << "(correct) torque: " << (M*ddq_).transpose() << std::endl;
     std::cout << "=============================" << std::endl;
   }
 

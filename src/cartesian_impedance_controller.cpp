@@ -151,6 +151,8 @@ CallbackReturn CartesianImpedanceController::on_init() {
   UserInputServer input_server_obj(&position_d_target_, &rotation_d_target_, &K, &D, &T);
   std::thread input_thread(&UserInputServer::main, input_server_obj, 0, nullptr);
   input_thread.detach();
+  pose_error_pub_ = get_node()->create_publisher<std_msgs::msg::Float64MultiArray>(
+      "~/pose_error", rclcpp::QoS(10));
   RCLCPP_INFO(get_node()->get_logger(), "on_init completed successfully.");
   return CallbackReturn::SUCCESS;
 }
@@ -332,20 +334,26 @@ controller_interface::return_type CartesianImpedanceController::update(const rcl
   error.tail(3) << error_quaternion.x(), error_quaternion.y(), error_quaternion.z();
   error.tail(3) << -transform.rotation() * error.tail(3);
 
+  // --- Publish pose error for visualization ---
+  std_msgs::msg::Float64MultiArray pose_error_msg;
+  pose_error_msg.data.assign(error.data(), error.data() + error.size());
+  pose_error_pub_->publish(pose_error_msg);
+
   double damping = 1e-6;
-  Lambda = (jacobian * M.inverse() * jacobian.transpose() + damping * IDENTITY).inverse();
+  Lambda = (jacobian.topLeftCorner(6,7) * M.topLeftCorner(7,7).inverse() * jacobian.topLeftCorner(6,7).transpose() + damping * IDENTITY).inverse();
 
   if (!Lambda.allFinite()) {
     RCLCPP_ERROR(rclcpp::get_logger("cartesian_impedance_controller"), "Lambda contains NaN!");
   }
+  
 
-    // correcting D to be critically damped
-  D =  D_gain* K.cwiseMax(0.0).cwiseSqrt() * Lambda.cwiseMax(0.0).diagonal().cwiseSqrt().asDiagonal();
+  // correcting D to be critically damped
+  D = D_gain * K.cwiseMax(0.0).cwiseSqrt() * Lambda.cwiseMax(0.0).diagonal().cwiseSqrt().asDiagonal();
 
-  F_impedance = -1 * ((D * jacobian * dq_) + K * error);
+  F_impedance = -1 * ((D * jacobian.topLeftCorner(6,7) * dq_) + K * error);
 
   Eigen::VectorXd tau_nullspace(7), tau_d(7), tau_impedance(7);
-  pseudoInverse(jacobian.transpose(), jacobian_transpose_pinv);
+  pseudoInverse(jacobian.topLeftCorner(6,7).transpose(), jacobian_transpose_pinv);
 
   //tau_nullspace << (Eigen::MatrixXd::Identity(7, 7) -
   //                  jacobian.transpose() * jacobian_transpose_pinv) *
@@ -372,7 +380,16 @@ controller_interface::return_type CartesianImpedanceController::update(const rcl
     // std::cout << "F_ext_robot [N]" << std::endl;
     std::cout << "dynamic torques" << dynamic_torques.transpose() << std::endl;
     std::cout << "g " << g.transpose() << std::endl;
-    //std::cout << "Lambda: " << Lambda << std::endl;
+
+    std::cout << "jacobian: " << std::endl;
+    std::cout << jacobian.topLeftCorner(6,7) << std::endl;
+
+    std::cout << "mass matrix: " << std::endl;
+    std::cout << M.topLeftCorner(7,7) << std::endl;
+
+    std::cout << "Lambda: " << std::endl;
+    std::cout << Lambda.topLeftCorner(6,6) << std::endl;
+
     std::cout << "tau_d: " << tau_d.transpose() << std::endl;
     // std::cout << "--------" << std::endl;
     //std::cout << "tau_nullspace: " << tau_nullspace.transpose() << std::endl;
@@ -384,6 +401,7 @@ controller_interface::return_type CartesianImpedanceController::update(const rcl
     // std::cout << T << std::endl;
     std::cout << "position: " << position.transpose() << std::endl;
     std::cout << "orientation: " << orientation << std::endl;
+    std::cout << "error: " << error.transpose() << std::endl;
     std::cout << "-------------------------------------------------------------------------------------" << std::endl;
   }
   outcounter++;

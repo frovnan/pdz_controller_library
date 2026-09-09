@@ -31,6 +31,7 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include "rclcpp/subscription.hpp"
+#include <std_msgs/msg/float64_multi_array.hpp>
 
 #include <Eigen/Dense>
 #include <Eigen/Eigen>
@@ -103,6 +104,9 @@ class JointImpedanceIkController : public controller_interface::ControllerInterf
   //subscriptions
   rclcpp::Subscription<geometry_msgs::msg::Pose>::SharedPtr desired_pose_sub_;
 
+  //publishers
+  rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr pose_error_pub_;
+
   /**
    * @brief Calculates the new pose based on the initial pose.
    *
@@ -145,6 +149,8 @@ class JointImpedanceIkController : public controller_interface::ControllerInterf
                                                                                 0,   0,   0,   20,   0,   0,
                                                                                 0,   0,   0,   0,   20,   0,
                                                                                 0,   0,   0,   0,   0,   9).finished();
+
+  Eigen::Matrix<double, 6, 6> T_cartesian_desired = Eigen::Matrix<double, 6, 6>::Identity();
 
 
   Eigen::Quaterniond orientation_;

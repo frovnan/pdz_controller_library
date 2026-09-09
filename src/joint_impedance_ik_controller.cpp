@@ -125,6 +125,13 @@ JointImpedanceIkController::state_interface_configuration() const {
 // on_init
 // ---------------------------------------------------------------------------
 CallbackReturn JointImpedanceIkController::on_init() {
+  UserInputServer input_server_obj(
+      &position_d_target_, &rotation_d_target_, &K_cartesian_desired,
+      &D_cartesian_desired, &T_cartesian_desired);
+  std::thread input_thread(&UserInputServer::main, input_server_obj, 0, nullptr);
+  input_thread.detach();
+  pose_error_pub_ = get_node()->create_publisher<std_msgs::msg::Float64MultiArray>(
+      "~/pose_error", rclcpp::QoS(10));
   RCLCPP_INFO(get_node()->get_logger(), "on_init completed successfully.");
   return CallbackReturn::SUCCESS;
 }
@@ -326,6 +333,11 @@ controller_interface::return_type JointImpedanceIkController::update(
   
   error.head(3) *= kp_pos; // Scale position error
   error.tail(3) *= kp_ori; // Scale orientation error
+
+  // --- Publish pose error for visualization ---
+  std_msgs::msg::Float64MultiArray pose_error_msg;
+  pose_error_msg.data.assign(error.data(), error.data() + error.size());
+  pose_error_pub_->publish(pose_error_msg);
   
 
   // --- Jacobian ---
@@ -385,16 +397,15 @@ controller_interface::return_type JointImpedanceIkController::update(
     std::cout << "current joint velocities: " << joint_velocities_current_eigen.transpose() << std::endl;
     std::cout << "desired joint configuration: " << joint_positions_desired_eigen.transpose() << std::endl;
     std::cout << "joint error: " << (joint_positions_desired_eigen - joint_positions_current_eigen).transpose() << std::endl;
-    //std::cout << "joint error: " << (joint_positions_desired_eigen - joint_positions_current_eigen).transpose() << std::endl;
     //std::cout << "equivalent stiffness: " << (jacobian.transpose() * K_cartesian_desired * jacobian).diagonal().transpose() << std::endl;
     std::cout << "EE position: " << position_model.transpose() << std::endl;
     std::cout << "EE orientation: " << orientation_model.coeffs().transpose() << std::endl;
     std::cout << "desired EE position: " << position_d_target_.transpose() << std::endl;
     std::cout << "desired EE orientation: " << orientation_d_target_.coeffs().transpose() << std::endl;
     std::cout << "pose error: " << error.transpose() << std::endl;
-    std::cout << "dq_ik: " << dq_ik.transpose() << std::endl;
-    std::cout << "jacobian: " << std::endl << jacobian_7 << std::endl;
-    std::cout << "jacobian pseudo-inverse: " << std::endl << jacobian_pinv << std::endl;
+    //std::cout << "dq_ik: " << dq_ik.transpose() << std::endl;
+    //std::cout << "jacobian: " << std::endl << jacobian_7 << std::endl;
+    //std::cout << "jacobian pseudo-inverse: " << std::endl << jacobian_pinv << std::endl;
     std::cout << "-------------------------------------------------------------------------------------" << std::endl;
   }
   counter_++;

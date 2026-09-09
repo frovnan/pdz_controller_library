@@ -39,6 +39,7 @@ find_package(std_srvs REQUIRED)
 find_package(shape_msgs REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system filesystem)
 find_package(pinocchio REQUIRED)
+find_package(yaml-cpp REQUIRED)
 
 add_library(
         ${PROJECT_NAME}
@@ -83,6 +84,7 @@ ament_target_dependencies(
         geometry_msgs
         shape_msgs
         pinocchio
+        yaml-cpp
 )
 
 pluginlib_export_plugin_description_file(
@@ -90,7 +92,11 @@ pluginlib_export_plugin_description_file(
 
 add_executable(user_input_client src/user_input_client.cpp)
 target_link_libraries(user_input_client ${PROJECT_NAME})
-target_link_libraries(${PROJECT_NAME} pinocchio::pinocchio)
+target_link_libraries(${PROJECT_NAME} pinocchio::pinocchio yaml-cpp)
+
+install(PROGRAMS
+        scripts/plot_pose_error.py
+        DESTINATION lib/${PROJECT_NAME})
 
 target_compile_definitions(${PROJECT_NAME} PUBLIC
   BOOST_MPL_LIMIT_LIST_SIZE=30

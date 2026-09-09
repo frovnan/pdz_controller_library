@@ -35,6 +35,7 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include "rclcpp/subscription.hpp"
+#include <std_msgs/msg/float64_multi_array.hpp>
 
 #include <Eigen/Dense>
 #include <Eigen/Eigen>
@@ -122,6 +123,7 @@ public:
     rclcpp::Service<messages_fr3::srv::SetPose>::SharedPtr pose_srv_;
     rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_publisher_;
     rclcpp::Subscription<messages_fr3::msg::ClosestPoint>::SharedPtr closest_point_sub_;
+    rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr pose_error_pub_;
     //Simulation
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr reset_service_;
 

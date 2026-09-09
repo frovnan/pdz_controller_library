@@ -31,6 +31,7 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include "rclcpp/subscription.hpp"
+#include <std_msgs/msg/float64_multi_array.hpp>
 
 #include <Eigen/Dense>
 #include <Eigen/Eigen>
@@ -92,6 +93,8 @@ public:
     const std::string robot_name_{"fr3"};
     const std::string state_interface_name_{"robot_state"};
 
+    rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr pose_error_pub_;
+
     //Functions
     void topic_callback(const std::shared_ptr<franka_msgs::msg::FrankaRobotState> msg);
     void updateJointStates();
@@ -142,17 +145,17 @@ public:
     Eigen::Matrix<double, 6, 6> D =  (Eigen::MatrixXd(6,6) <<  35,   0,   0,   0,   0,   0,
                                                                 0,  35,   0,   0,   0,   0,
                                                                 0,   0,  35,   0,   0,   0,  // impedance damping term
-                                                                0,   0,   0,   25,   0,   0,
-                                                                0,   0,   0,   0,   25,   0,
+                                                                0,   0,   0,  25,   0,   0,
+                                                                0,   0,   0,   0,  25,   0,
                                                                 0,   0,   0,   0,   0,   6).finished();
 
     Eigen::Matrix<double, 6, 6> Theta = IDENTITY;
     Eigen::Matrix<double, 6, 6> T = (Eigen::MatrixXd(6,6) <<       1,   0,   0,   0,   0,   0,
                                                                    0,   1,   0,   0,   0,   0,
-                                                                   0,   0,   2.5,   0,   0,   0,  // Inertia term
+                                                                   0,   0, 2.5,   0,   0,   0,  // Inertia term
                                                                    0,   0,   0,   1,   0,   0,
                                                                    0,   0,   0,   0,   1,   0,
-                                                                   0,   0,   0,   0,   0,   2.5).finished();                                               // impedance inertia term
+                                                                   0,   0,   0,   0,   0, 2.5).finished();                                               // impedance inertia term
 
     Eigen::Matrix<double, 6, 6> cartesian_stiffness_target_;                                 // impedance damping term
     Eigen::Matrix<double, 6, 6> cartesian_damping_target_;                                   // impedance damping term

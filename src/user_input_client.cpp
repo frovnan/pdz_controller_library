@@ -76,12 +76,12 @@ int main(int argc, char **argv) {
     int task_selection, pose_selection, param_selection;
 
     while (rclcpp::ok()){
-        std::cout << "Enter the next task: \n [1] --> Change position \n [2] --> Change impedance parameters" << std::endl;
+        std::cout << "Enter the next task: \n [1] --> Change position \n [2] --> Trajectory \n [3] --> Change impedance parameters" << std::endl;
         std::cin >> task_selection;
 
         switch (task_selection){
             case 1:{ 
-                std::cout << "Enter new goal position: \n [1] --> 0.0, 0.5, 0.5, pi, 0.0, pi/2 \n [2] --> 0.5, 0.0, 0.5, pi, 0.0, pi/2 \n [3] --> 0.5, 0.5, 0.0, pi, 0.0, pi/2 \n [4] --> Custom \n" ;
+                std::cout << "Enter new goal position: \n [1] --> 0.0, 0.5, 0.5, pi, 0.0, 0.0 \n [2] --> 0.5, 0.0, 0.5, pi, 0.0, 0.0 \n [3] --> 0.5, 0.5, 0.0, pi, 0.0, 0.0 \n [4] --> Custom \n" ;
                 std::cin >> pose_selection;
 
                 switch (pose_selection){
@@ -91,7 +91,7 @@ int main(int argc, char **argv) {
                         pose_request->z = 0.5;
                         pose_request->roll = M_PI;
                         pose_request->pitch = 0.0;
-                        pose_request->yaw = M_PI_2;
+                        pose_request->yaw = 0.0;
                         break;
                     }
 
@@ -101,7 +101,7 @@ int main(int argc, char **argv) {
                         pose_request->z = 0.5;
                         pose_request->roll = M_PI;
                         pose_request->pitch = 0.0;
-                        pose_request->yaw = M_PI_2;
+                        pose_request->yaw = 0.0;
                         break;
                     }
                                 
@@ -111,7 +111,7 @@ int main(int argc, char **argv) {
                         pose_request->z = 0.0;
                         pose_request->roll = M_PI;
                         pose_request->pitch = 0.0;
-                        pose_request->yaw = M_PI_2;
+                        pose_request->yaw = 0.0;
                         break;
                     }
 
@@ -146,7 +146,7 @@ int main(int argc, char **argv) {
                         pose_request->z = 0.4;
                         pose_request->roll = M_PI;
                         pose_request->pitch = 0.0;
-                        pose_request->yaw = M_PI_2;
+                        pose_request->yaw = 0.0;
                         break;
                     }
                 }
@@ -160,7 +160,47 @@ int main(int argc, char **argv) {
                 }
                 break;
             }
-            case 2:{                                
+
+
+            case 2:{
+                std::cout << "Trajectory task selected." << std::endl;
+
+                const float radius = 0.2; // Amplitude of the trajectory
+                const float omega = M_PI / 6.0; // Frequency of the trajectory
+
+                rclcpp::Rate rate(100);
+
+                double t0 = rclcpp::Clock().now().seconds();
+
+                while(rclcpp::ok()) {
+                    double t = rclcpp::Clock().now().seconds() - t0;
+
+                    pose_request->x = 0.4 + radius * sin(omega * t);
+                    pose_request->y = radius * cos(omega * t);
+                    pose_request->z = 0.5;
+                    pose_request->roll = M_PI;
+                    pose_request->pitch = 0.0;
+                    pose_request->yaw = 0.0;
+
+                    auto pose_result = pose_client->async_send_request(pose_request);
+
+                    if(rclcpp::spin_until_future_complete(node, pose_result) ==  rclcpp::FutureReturnCode::SUCCESS){
+                        RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Trajectory update sent successfully.");
+                        std::cout << "Current Pose: x = " << pose_request->x << ", y = " << pose_request->y << ", z = " << pose_request->z
+                                  << ", roll = " << pose_request->roll << ", pitch = " << pose_request->pitch
+                                  << ", yaw = " << pose_request->yaw << std::endl;
+                    } else {
+                        RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Failed to call service setPose during trajectory.");
+                    }
+
+                    rate.sleep();
+                }
+
+                break;
+            }
+
+
+            case 3:{                                
                 std::cout << "Enter new inertia: \n [1] --> N/A \n [2] --> N/A \n [3] --> N/A\n";
                 std::cin >> param_selection;
 
