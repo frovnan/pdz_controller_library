@@ -130,6 +130,8 @@ CallbackReturn JointImpedanceIkController::on_init() {
       &D_cartesian_desired, &T_cartesian_desired);
   std::thread input_thread(&UserInputServer::main, input_server_obj, 0, nullptr);
   input_thread.detach();
+  real_pose_pub_ = get_node()->create_publisher<std_msgs::msg::Float64MultiArray>(
+      "~/real_pose", rclcpp::QoS(10));
   pose_error_pub_ = get_node()->create_publisher<std_msgs::msg::Float64MultiArray>(
       "~/pose_error", rclcpp::QoS(10));
   RCLCPP_INFO(get_node()->get_logger(), "on_init completed successfully.");
@@ -333,6 +335,19 @@ controller_interface::return_type JointImpedanceIkController::update(
   
   error.head(3) *= kp_pos; // Scale position error
   error.tail(3) *= kp_ori; // Scale orientation error
+
+  // --- Publish real pose for visualization ---
+  Eigen::Vector3d euler = transform.rotation().eulerAngles(0, 1, 2);
+  std_msgs::msg::Float64MultiArray real_pose_msg;
+  real_pose_msg.data = {
+    position_model[0],
+    position_model[1],
+    position_model[2],
+    euler[0],
+    euler[1],
+    euler[2]
+  };
+  real_pose_pub_->publish(real_pose_msg);
 
   // --- Publish pose error for visualization ---
   std_msgs::msg::Float64MultiArray pose_error_msg;

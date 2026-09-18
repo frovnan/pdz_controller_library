@@ -105,6 +105,7 @@ class JointImpedanceIkController : public controller_interface::ControllerInterf
   rclcpp::Subscription<geometry_msgs::msg::Pose>::SharedPtr desired_pose_sub_;
 
   //publishers
+  rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr real_pose_pub_;
   rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr pose_error_pub_;
 
   /**

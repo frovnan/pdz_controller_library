@@ -533,6 +533,8 @@ CallbackReturn RiemannianMotionPolicy::on_init() {
   UserInputServer input_server_obj(&position_d_target_, &rotation_d_target_, &K, &D, &T);
   std::thread input_thread(&UserInputServer::main, input_server_obj, 0, nullptr);
   input_thread.detach();
+  real_pose_pub_ = get_node()->create_publisher<std_msgs::msg::Float64MultiArray>(
+      "~/real_pose", rclcpp::QoS(10));
   pose_error_pub_ = get_node()->create_publisher<std_msgs::msg::Float64MultiArray>(
       "~/pose_error", rclcpp::QoS(10));
   RCLCPP_INFO(get_node()->get_logger(), "on_init completed successfully");
@@ -973,6 +975,20 @@ controller_interface::return_type RiemannianMotionPolicy::update(const rclcpp::T
   error.tail(3) << -transform.rotation() * error.tail(3);
   error.head(3) << position - position_d_;
 
+  // --- Publish real pose for visualization ---
+  Eigen::Vector3d euler = transform.rotation().eulerAngles(0, 1, 2);
+  std_msgs::msg::Float64MultiArray real_pose_msg;
+  real_pose_msg.data = {
+    position[0],
+    position[1],
+    position[2],
+    euler[0],
+    euler[1],
+    euler[2]
+  };
+  real_pose_pub_->publish(real_pose_msg);
+
+  // --- Publish pose error for visualization ---
   std_msgs::msg::Float64MultiArray pose_error_msg;
   pose_error_msg.data.assign(error.data(), error.data() + error.size());
   pose_error_pub_->publish(pose_error_msg);
