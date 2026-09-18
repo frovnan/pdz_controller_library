@@ -406,6 +406,8 @@ controller_interface::return_type JointImpedanceIkController::update(
     //std::cout << "dq_ik: " << dq_ik.transpose() << std::endl;
     //std::cout << "jacobian: " << std::endl << jacobian_7 << std::endl;
     //std::cout << "jacobian pseudo-inverse: " << std::endl << jacobian_pinv << std::endl;
+    std::cout << "k gains: " << k_gains_.transpose() << std::endl;
+    std::cout << "d gains: " << d_gains_.transpose() << std::endl;
     std::cout << "-------------------------------------------------------------------------------------" << std::endl;
   }
   counter_++;

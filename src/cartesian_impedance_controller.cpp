@@ -84,8 +84,8 @@ Eigen::Matrix<double, 7, 1> CartesianImpedanceController::saturateTorqueRate(
   const Eigen::Matrix<double, 7, 1>& tau_J_d_M) {  
   Eigen::Matrix<double, 7, 1> tau_d_saturated{};
   for (size_t i = 0; i < 7; i++) {
-  double difference = tau_d_calculated[i] - tau_J_d_M[i];
-  tau_d_saturated[i] = tau_J_d_M[i] + std::max(std::min(difference, delta_tau_max_), -delta_tau_max_);
+    double difference = tau_d_calculated[i] - tau_J_d_M[i];
+    tau_d_saturated[i] = tau_J_d_M[i] + std::max(std::min(difference, delta_tau_max_), -delta_tau_max_);
   }
   return tau_d_saturated;
 }
@@ -351,6 +351,10 @@ controller_interface::return_type CartesianImpedanceController::update(const rcl
   D = D_gain * K.cwiseMax(0.0).cwiseSqrt() * Lambda.cwiseMax(0.0).diagonal().cwiseSqrt().asDiagonal();
 
   F_impedance = -1 * ((D * jacobian.topLeftCorner(6,7) * dq_) + K * error);
+  if (!F_impedance.allFinite()) {
+    RCLCPP_ERROR(rclcpp::get_logger("cartesian_impedance_controller"), "F_impedance contains NaN!");
+    F_impedance.setZero();
+  }
 
   Eigen::VectorXd tau_nullspace(7), tau_d(7), tau_impedance(7);
   pseudoInverse(jacobian.topLeftCorner(6,7).transpose(), jacobian_transpose_pinv);
@@ -361,6 +365,10 @@ controller_interface::return_type CartesianImpedanceController::update(const rcl
   //                  (2.0 * sqrt(nullspace_stiffness_)) * dq_);  // if config control ) false we don't care about the joint position
 
   tau_impedance = jacobian.topLeftCorner(6,7).transpose() * Sm * F_impedance; //+ jacobian.transpose() * Sf * F_cmd;
+  if (!tau_impedance.allFinite()) {
+    RCLCPP_ERROR(rclcpp::get_logger("cartesian_impedance_controller"), "tau_impedance contains NaN!");
+    tau_impedance.setZero();
+  }
   tau_d = tau_impedance + tau_nullspace + coriolis.head(7); //add nullspace and coriolis components to desired torque
   tau_d << saturateTorqueRate(tau_d, tau_J_d_M);  // Saturate torque rate to avoid discontinuities
   tau_J_d_M = tau_d;
@@ -377,9 +385,9 @@ controller_interface::return_type CartesianImpedanceController::update(const rcl
   // std::cout << outcounter << std::endl;
   if (outcounter % 1000 == 0){
     std::cout << "-------------------------------------------------------------------------------------" << std::endl;
-    // std::cout << "F_ext_robot [N]" << std::endl;
-    std::cout << "dynamic torques" << dynamic_torques.transpose() << std::endl;
-    std::cout << "g " << g.transpose() << std::endl;
+    //std::cout << "F_ext_robot [N]" << std::endl;
+    //std::cout << "dynamic torques" << dynamic_torques.transpose() << std::endl;
+    //std::cout << "g " << g.transpose() << std::endl;
 
     std::cout << "jacobian: " << std::endl;
     std::cout << jacobian.topLeftCorner(6,7) << std::endl;
@@ -390,18 +398,20 @@ controller_interface::return_type CartesianImpedanceController::update(const rcl
     std::cout << "Lambda: " << std::endl;
     std::cout << Lambda.topLeftCorner(6,6) << std::endl;
 
-    std::cout << "tau_d: " << tau_d.transpose() << std::endl;
+    std::cout << "torques: " << tau_d.transpose() << std::endl;
     // std::cout << "--------" << std::endl;
     //std::cout << "tau_nullspace: " << tau_nullspace.transpose() << std::endl;
     // std::cout "tau_d: " << << "--------" << std::endl;
     //std::cout << "tau_impedance: " << tau_impedance.transpose() << std::endl;
     // std::cout << "--------" << std::endl;
-    std::cout << "coriolis: " << coriolis.transpose() << std::endl;
+    //std::cout << "coriolis: " << coriolis.transpose() << std::endl;
     // std::cout << "Inertia scaling [m]: " << std::endl;
     // std::cout << T << std::endl;
     std::cout << "position: " << position.transpose() << std::endl;
     std::cout << "orientation: " << orientation << std::endl;
     std::cout << "error: " << error.transpose() << std::endl;
+    std::cout << "K gains: " << K.diagonal().transpose() << std::endl;
+    std::cout << "D gains: " << D.diagonal().transpose() << std::endl;
     std::cout << "-------------------------------------------------------------------------------------" << std::endl;
   }
   outcounter++;

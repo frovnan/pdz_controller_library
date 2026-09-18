@@ -276,6 +276,8 @@ controller_interface::return_type JointImpedanceController::update(
     std::cout << "current joint velocities: " << dq_.transpose() << std::endl;
     std::cout << "desired joint configuration: " << q_goal.transpose() << std::endl;
     std::cout << "joint error: " << (q_goal - q_).transpose() << std::endl;
+    std::cout << "k gains: " << k_gains_.transpose() << std::endl;
+    std::cout << "d gains: " << d_gains_.transpose() << std::endl;
     std::cout << "-------------------------------------------------------------------------------------" << std::endl;
   }
   counter_++;

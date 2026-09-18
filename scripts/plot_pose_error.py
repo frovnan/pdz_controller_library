@@ -12,7 +12,7 @@ class PoseErrorPlotter(Node):
     def __init__(self):
         super().__init__("pose_error_plotter")
         topic = self.declare_parameter(
-            "topic", "/cartesian_impedance_controller/pose_error"
+            "topic", "/cartesian_impedance_controller/pose_error"  # <----- change this to your desired topic
         ).value
         self.samples = deque(maxlen=2000)
         self.values = deque(maxlen=2000)

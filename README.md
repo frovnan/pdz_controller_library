@@ -2,7 +2,7 @@
 
 ## Description
 
-A ROS 2 Humble package that contains various works by students from Pd|Z for the Franka Emika FR3 robot arm. 
+A ROS 2 Humble package created as part of my Bachelor's thesis. It contains various control policies made by students from Pd|Z for the Franka Emika FR3 robot arm.
 
 These include:
 
@@ -14,6 +14,8 @@ These include:
 * [Potential Field Method](https://github.com/anel-b/repulsive_force)
 * [Riemann Motion Policy](https://github.com/MatteoBodmer/riemannian_motion_policy_mb)
 * [Singularity and Oscillation Avoidance](https://github.com/GeniusT31/src)
+
+The goal is to compare their trajectory-tracking performance.
 
 ## Prerequisites
 
@@ -72,20 +74,6 @@ Further down, you will need to add these lines:
   cartesian_impedance_controller:
     ros__parameters:
       robot_type: "fr3"
-      k_gains:
-        - 2500.0
-        - 2500.0
-        - 1000.0
-        - 130.0
-        - 130.0
-        - 45.0
-      d_gains:
-        - 35.0
-        - 35.0
-        - 35.0
-        - 25.0
-        - 25.0
-        - 6.0
 
 /**:
   joint_impedance_controller:
@@ -113,21 +101,21 @@ Further down, you will need to add these lines:
     ros__parameters:
       robot_type: "fr3"
       k_gains:
-        - 600.0
-        - 600.0
-        - 600.0
-        - 600.0
-        - 400.0
-        - 150.0
-        - 50.0
-      d_gains:
-        - 30.0
-        - 30.0
-        - 30.0
-        - 30.0
+        - 85.0
+        - 135.0
+        - 90.0
+        - 90.0
         - 15.0
-        - 10.0
-        - 10.0
+        - 8.0
+        - 3.0
+      d_gains:
+        - 14.0
+        - 23.0
+        - 18.0
+        - 18.0
+        - 2.5
+        - 1.8
+        - 0.8
 
 /**:
   riemannian_motion_policy:
@@ -197,5 +185,18 @@ To run any additional functionalities like e.g. the user_input_client, open a ne
 ros2 run pdz_controller_library <node name>
 ```
 
-##
+**Disclaimer:** plot_pose_error only works for a hardcoded controller so far (see below).
 
+```bash
+class PoseErrorPlotter(Node):
+    def __init__(self):
+        super().__init__("pose_error_plotter")
+        topic = self.declare_parameter(
+            "topic", "/cartesian_impedance_controller/pose_error"  # <----- change this to your desired topic
+        ).value
+        self.samples = deque(maxlen=2000)
+        self.values = deque(maxlen=2000)
+        self.subscription = self.create_subscription(
+            Float64MultiArray, topic, self.error_callback, 10
+        )
+```
