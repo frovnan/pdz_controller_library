@@ -15,7 +15,7 @@ class PoseErrorPlotter(Node):
             "topic", "/riemannian_motion_policy/real_pose"  # <----- change this to your desired topic
         ).value
         desired_topic = self.declare_parameter(
-            "desired_topic", "/user_input_client/desired_pose"  # <----- change this to your desired topic
+            "desired_topic", "/user_input_client/desired_pose"
         ).value
 
         self.real_time = deque(maxlen=2000)

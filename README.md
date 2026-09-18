@@ -191,12 +191,11 @@ ros2 run pdz_controller_library <node name>
 class PoseErrorPlotter(Node):
     def __init__(self):
         super().__init__("pose_error_plotter")
+
         topic = self.declare_parameter(
-            "topic", "/cartesian_impedance_controller/pose_error"  # <----- change this to your desired topic
+            "topic", "/<controller name>/real_pose"  # <----- change this to your desired topic
         ).value
-        self.samples = deque(maxlen=2000)
-        self.values = deque(maxlen=2000)
-        self.subscription = self.create_subscription(
-            Float64MultiArray, topic, self.error_callback, 10
-        )
+        desired_topic = self.declare_parameter(
+            "desired_topic", "/user_input_client/desired_pose"
+        ).value
 ```
