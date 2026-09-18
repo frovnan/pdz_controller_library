@@ -133,7 +133,7 @@ Further down, you will need to add these lines:
       robot_type: "fr3"
 ```
 
-The numbers under the impedance controllers are the stiffness and damping gains for each task-space DoF (in the case of cartesian impedance) or joint-space DoF (in the case of joint impedace). Change them to suit your needs.
+The numbers under the joint impedance controllers are the stiffness and damping gains for each joint. They can be changed freely if one so wishes.
 
 ### Step 3: Clone the Messages Package
 
