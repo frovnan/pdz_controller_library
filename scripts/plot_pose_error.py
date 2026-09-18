@@ -71,6 +71,16 @@ class PoseErrorPlotter(Node):
         self.ry_data_axis.set_ylabel("ry orientation [rad]")
         self.rz_data_axis.set_ylabel("rz orientation [rad]")
 
+        for ax in [
+            self.x_data_axis,
+            self.y_data_axis,
+            self.z_data_axis,
+            self.rx_data_axis,
+            self.ry_data_axis,
+            self.rz_data_axis
+        ]:
+            ax.yaxis.tick_right()
+
         self.x_data_axis.legend(loc="upper right")
         self.y_data_axis.legend(loc="upper right")
         self.z_data_axis.legend(loc="upper right")

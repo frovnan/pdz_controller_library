@@ -1138,12 +1138,14 @@ controller_interface::return_type RiemannianMotionPolicy::update(const rclcpp::T
   if (outcounter % 1000 == 0) { // Log periodically
     std::cout << "=== Debugging Information ===" << std::endl;
     std::cout << "ddq_: " << ddq_.transpose() << std::endl;
+    std::cout << "position: " << position.transpose() << std::endl;
+    std::cout << "orientation: " << orientation << std::endl;
     std::cout << "pose error: " << error.transpose() << std::endl;
     std::cout << "tau_d: " << tau_d.transpose() << std::endl;
     std::cout << "gravity torques: " << g.transpose() << std::endl;
     std::cout << "coriolis torques: " << coriolis.transpose() << std::endl;
     //std::cout << "mass matrix: \n" << M << std::endl;
-    std::cout << "(correct) torque: " << (M*ddq_).transpose() << std::endl;
+    //std::cout << "(correct) torque: " << (M*ddq_).transpose() << std::endl;
     std::cout << "=============================" << std::endl;
   }
 

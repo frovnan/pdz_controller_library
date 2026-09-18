@@ -187,8 +187,8 @@ class JointImpedanceIkController : public controller_interface::ControllerInterf
   double nullspace_stiffness_target_{0.001};
   
 
-  Eigen::Vector3d position_d_target_ = {0.5, 0.0, 0.5};
-  Eigen::Vector3d rotation_d_target_ = {0.0, 0.0, 0.0};
+  Eigen::Vector3d position_d_target_ = {0.3, 0.0, 0.5};
+  Eigen::Vector3d rotation_d_target_ = {M_PI, 0.0, 0.0};
   Eigen::Quaterniond orientation_d_target_;
   Eigen::Vector3d position_d_;
   Eigen::Quaterniond orientation_d_; 
