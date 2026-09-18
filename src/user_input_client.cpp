@@ -2,6 +2,8 @@
 #include "messages_fr3/srv/set_pose.hpp"
 #include "messages_fr3/srv/set_param.hpp"
 
+#include <std_msgs/msg/float64_multi_array.hpp>
+
 #include <chrono>
 #include <cstdlib>
 #include <memory>
@@ -172,6 +174,8 @@ int main(int argc, char **argv) {
 
                 double t0 = rclcpp::Clock().now().seconds();
 
+                auto desired_pose_pub_ = node->create_publisher<std_msgs::msg::Float64MultiArray>("~/desired_pose", 10);
+
                 while(rclcpp::ok()) {
                     double t = rclcpp::Clock().now().seconds() - t0;
 
@@ -184,6 +188,18 @@ int main(int argc, char **argv) {
 
                     auto pose_result = pose_client->async_send_request(pose_request);
 
+                    // --- Publish current desired pose for visualization ---
+                    std_msgs::msg::Float64MultiArray desired_pose_msg;
+                    desired_pose_msg.data = {   
+                        pose_request->x,
+                        pose_request->y,
+                        pose_request->z,
+                        pose_request->roll,
+                        pose_request->pitch,
+                        pose_request->yaw
+                    };
+                    desired_pose_pub_->publish(desired_pose_msg);
+
                     if(rclcpp::spin_until_future_complete(node, pose_result) ==  rclcpp::FutureReturnCode::SUCCESS){
                         RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Trajectory update sent successfully.");
                         std::cout << "Current Pose: x = " << pose_request->x << ", y = " << pose_request->y << ", z = " << pose_request->z
@@ -193,7 +209,7 @@ int main(int argc, char **argv) {
                         RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Failed to call service setPose during trajectory.");
                     }
 
-                    rate.sleep();
+                    //rate.sleep();
                 }
 
                 break;

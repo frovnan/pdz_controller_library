@@ -12,50 +12,150 @@ class PoseErrorPlotter(Node):
     def __init__(self):
         super().__init__("pose_error_plotter")
         topic = self.declare_parameter(
-            "topic", "/cartesian_impedance_controller/pose_error"  # <----- change this to your desired topic
+            "topic", "/cartesian_impedance_controller/real_pose"  # <----- change this to your desired topic
         ).value
-        self.samples = deque(maxlen=2000)
-        self.values = deque(maxlen=2000)
-        self.subscription = self.create_subscription(
-            Float64MultiArray, topic, self.error_callback, 10
+        desired_topic = self.declare_parameter(
+            "desired_topic", "/user_input_client/desired_pose"  # <----- change this to your desired topic
+        ).value
+        self.real_samples = deque(maxlen=2000)
+        self.real_values = deque(maxlen=2000)
+        self.desired_samples = deque(maxlen=2000)
+        self.desired_values = deque(maxlen=2000)
+        self.real_subscription = self.create_subscription(
+            Float64MultiArray, topic, self.real_callback, 10
         )
-
-        self.figure, (self.position_axis, self.orientation_axis) = plt.subplots(2, 1)
-        self.position_lines = [
-            self.position_axis.plot([], [], label=label)[0]
-            for label in ("x", "y", "z")
+        self.desired_subscription = self.create_subscription(
+            Float64MultiArray, desired_topic, self.desired_callback, 10
+        )
+        self.figure, (self.x_data_axis, self.y_data_axis, self.z_data_axis, self.rx_data_axis, self.ry_data_axis, self.rz_data_axis) = plt.subplots(6, 1)
+        self.x_lines = [
+            self.x_data_axis.plot([], [], label=label)[0]
+            for label in ("x", "x_des")
         ]
-        self.orientation_lines = [
-            self.orientation_axis.plot([], [], label=label)[0]
-            for label in ("rx", "ry", "rz")
+        self.y_lines = [
+            self.y_data_axis.plot([], [], label=label)[0]
+            for label in ("y", "y_des")
         ]
-        self.position_axis.set_ylabel("position error")
-        self.orientation_axis.set_ylabel("orientation error")
-        self.orientation_axis.set_xlabel("sample")
-        self.position_axis.legend()
-        self.orientation_axis.legend()
+        self.z_lines = [
+            self.z_data_axis.plot([], [], label=label)[0]
+            for label in ("z", "z_des")
+        ]
+        self.rx_lines = [
+            self.rx_data_axis.plot([], [], label=label)[0]
+            for label in ("rx", "rx_des")
+        ]
+        self.ry_lines = [
+            self.ry_data_axis.plot([], [], label=label)[0]
+            for label in ("ry", "ry_des")
+        ]
+        self.rz_lines = [
+            self.rz_data_axis.plot([], [], label=label)[0]
+            for label in ("rz", "rz_des")
+        ]
+        self.x_data_axis.set_ylabel("x data")
+        self.y_data_axis.set_ylabel("y data")
+        self.z_data_axis.set_ylabel("z data")
+        self.rx_data_axis.set_ylabel("rx data")
+        self.ry_data_axis.set_ylabel("ry data")
+        self.rz_data_axis.set_ylabel("rz data")
+        self.x_data_axis.set_xlabel("sample")
+        self.y_data_axis.set_xlabel("sample")
+        self.z_data_axis.set_xlabel("sample")
+        self.rx_data_axis.set_xlabel("sample")
+        self.ry_data_axis.set_xlabel("sample")
+        self.rz_data_axis.set_xlabel("sample")
+        self.x_data_axis.legend()
+        self.y_data_axis.legend()
+        self.z_data_axis.legend()
+        self.rx_data_axis.legend()
+        self.ry_data_axis.legend()
+        self.rz_data_axis.legend()
         self.timer = self.create_timer(0.05, self.update_plot)
 
-    def error_callback(self, message):
+    def real_callback(self, message):
         if len(message.data) != 6:
-            self.get_logger().warning("Expected 6 pose-error values")
+            self.get_logger().warning("Expected 6 pose values")
             return
-        self.samples.append(self.samples[-1] + 1 if self.samples else 0)
-        self.values.append(list(message.data))
+        self.real_samples.append(self.real_samples[-1] + 1 if self.real_samples else 0)
+        self.real_values.append(list(message.data))
+
+    def desired_callback(self, message):
+        if len(message.data) != 6:
+            self.get_logger().warning("Expected 6 desired pose values")
+            return
+        self.desired_samples.append(self.desired_samples[-1] + 1 if self.desired_samples else 0)
+        self.desired_values.append(list(message.data))
 
     def update_plot(self):
-        if not self.values:
+        if not self.real_values:
             return
-        samples = list(self.samples)
-        values = list(self.values)
-        for index, line in enumerate(self.position_lines):
-            line.set_data(samples, [value[index] for value in values])
-        for index, line in enumerate(self.orientation_lines):
-            line.set_data(samples, [value[index + 3] for value in values])
-        self.position_axis.relim()
-        self.position_axis.autoscale_view()
-        self.orientation_axis.relim()
-        self.orientation_axis.autoscale_view()
+        real_samples = list(self.real_samples)
+        desired_samples = list(self.desired_samples)
+        real_values = list(self.real_values)
+        desired_values = list(self.desired_values)
+
+        self.x_lines[0].set_data(
+            real_samples,
+            [v[0] for v in real_values]
+        )
+
+        self.x_lines[1].set_data(
+            desired_samples,
+            [v[0] for v in desired_values]
+        )
+        self.y_lines[0].set_data(
+            real_samples,
+            [v[1] for v in real_values]
+        )
+
+        self.y_lines[1].set_data(
+            desired_samples,
+            [v[1] for v in desired_values]
+        )
+        self.z_lines[0].set_data(
+            real_samples,
+            [v[2] for v in real_values]
+        )
+        self.z_lines[1].set_data(
+            desired_samples,
+            [v[2] for v in desired_values]
+        )
+        self.rx_lines[0].set_data(
+            real_samples,
+            [v[3] for v in real_values]
+        )
+        self.rx_lines[1].set_data(
+            desired_samples,
+            [v[3] for v in desired_values]
+        )
+        self.ry_lines[0].set_data(
+            real_samples,
+            [v[4] for v in real_values]
+        )
+        self.ry_lines[1].set_data(
+            desired_samples,
+            [v[4] for v in desired_values]
+        )
+        self.rz_lines[0].set_data(
+            real_samples,
+            [v[5] for v in real_values]
+        )
+        self.rz_lines[1].set_data(
+            desired_samples,
+            [v[5] for v in desired_values]
+        )
+        self.x_data_axis.relim()
+        self.x_data_axis.autoscale_view()
+        self.y_data_axis.relim()
+        self.y_data_axis.autoscale_view()
+        self.z_data_axis.relim()
+        self.z_data_axis.autoscale_view()
+        self.rx_data_axis.relim()
+        self.rx_data_axis.autoscale_view()
+        self.ry_data_axis.relim()
+        self.ry_data_axis.autoscale_view()
+        self.rz_data_axis.relim()
+        self.rz_data_axis.autoscale_view()
         self.figure.canvas.draw_idle()
         self.figure.canvas.flush_events()
 
