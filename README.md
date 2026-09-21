@@ -8,10 +8,9 @@ These include:
 
 * [Cartesian Impedance Controller](https://github.com/LucasG2001/cartesian_impedance_control)
 * [Admittance Controller](https://github.com/LucasG2001/admittance_control)
-* Joint Impedance Controller
+* Joint Impedance (IK) Controller
 * [Hybrid Force/Impedance Contoller](https://github.com/krombier/Bachelor_Thesis_Force_Control)
 * [Hybrid Impedance/Admittance Controller](https://github.com/enjoyericbu/hybridcontroller)
-* [Potential Field Method](https://github.com/anel-b/repulsive_force)
 * [Riemann Motion Policy](https://github.com/MatteoBodmer/riemannian_motion_policy_mb)
 * [Singularity and Oscillation Avoidance](https://github.com/GeniusT31/src)
 
