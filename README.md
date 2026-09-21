@@ -54,9 +54,6 @@ Navigate to the 'controllers.yaml' file located in 'franka_bringup/config/', and
       
       joint_impedance_ik_controller:
         type: pdz_contoller_library/JointImpedanceIkController
-      
-      joint_impedance_ik_controller:
-        type: pdz_contoller_library/JointImpedanceIkController
 
       impedance_admittance_hybrid_controller:
         type: pdz_controller_library/ImpedanceAdmittanceHybridController
