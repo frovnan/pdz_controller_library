@@ -184,18 +184,3 @@ To run any additional functionalities like e.g. the user_input_client, open a ne
 ```bash
 ros2 run pdz_controller_library <node name>
 ```
-
-**Disclaimer:** plot_pose_error only works for a hardcoded controller so far (see below).
-
-```bash
-class PoseErrorPlotter(Node):
-    def __init__(self):
-        super().__init__("pose_error_plotter")
-
-        topic = self.declare_parameter(
-            "topic", "/<controller name>/real_pose"  # <----- change this to your desired topic
-        ).value
-        desired_topic = self.declare_parameter(
-            "desired_topic", "/user_input_client/desired_pose"
-        ).value
-```
