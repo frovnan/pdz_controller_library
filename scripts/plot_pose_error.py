@@ -6,13 +6,34 @@ import matplotlib.pyplot as plt
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Float64MultiArray
+import subprocess
+import re
+import time
+from pathlib import Path
+
+result = subprocess.check_output(
+    ["ros2", "control", "list_controllers"],
+    text=True
+)
+result = re.sub(r'\x1b\[[0-9;]*m', '', result) # filter out ANSI color escape codes for line.split() to work cleanly
+
+controller_name = "placeholder"
+
+for line in result.splitlines():
+    name = line.split()[0]
+    state = line.split()[-1]
+    if state == "active" and name != "joint_state_broadcaster":
+        controller_name = name
+        if controller_name == "placeholder":
+            raise RuntimeError("No active controller found.")
+        break
 
 class PoseErrorPlotter(Node):
     def __init__(self):
         super().__init__("pose_error_plotter")
 
         topic = self.declare_parameter(
-            "topic", "/riemannian_motion_policy/real_pose"  # <----- change this to your desired topic
+            "topic", f"/{controller_name}/real_pose"
         ).value
         desired_topic = self.declare_parameter(
             "desired_topic", "/user_input_client/desired_pose"
@@ -91,6 +112,9 @@ class PoseErrorPlotter(Node):
         self.timer = self.create_timer(0.05, self.update_plot)
 
         self.start_time = None
+
+        self.duration = 30.0
+        self.saved = False
 
 
     def real_callback(self, message):
@@ -188,6 +212,23 @@ class PoseErrorPlotter(Node):
         self.rz_data_axis.autoscale_view()
         self.figure.canvas.draw_idle()
         self.figure.canvas.flush_events()
+        self.figure.suptitle(controller_name)
+
+        if (
+            not self.saved
+            and time.time() - self.start_time > self.duration
+        ):
+            results_dir = Path.home() / "franka_ros2_ws" / "src" / "pdz_controller_library" / "results"
+            results_dir.mkdir(parents=True, exist_ok=True)
+            filename = results_dir / f"{controller_name}.png"
+            self.figure.savefig(filename, dpi=300)
+
+            self.saved = True
+
+            self.get_logger().info(
+                f"Saved plot to {filename}"
+            )
+            plt.close(self.figure)
 
 
 def main(args=None):

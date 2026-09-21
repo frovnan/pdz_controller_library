@@ -176,6 +176,8 @@ int main(int argc, char **argv) {
 
                 auto desired_pose_pub_ = node->create_publisher<std_msgs::msg::Float64MultiArray>("~/desired_pose", 10);
 
+                std::system("ros2 run pdz_controller_library plot_pose_error.py &");
+
                 while(rclcpp::ok()) {
                     double t = rclcpp::Clock().now().seconds() - t0;
 
