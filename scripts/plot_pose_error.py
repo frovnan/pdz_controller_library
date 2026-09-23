@@ -51,7 +51,7 @@ class PoseErrorPlotter(Node):
             Float64MultiArray, desired_topic, self.desired_callback, 10
         )
 
-        self.figure, (self.x_data_axis, self.y_data_axis, self.z_data_axis, self.rx_data_axis, self.ry_data_axis, self.rz_data_axis) = plt.subplots(6, 1)
+        self.figure, (self.x_data_axis, self.y_data_axis, self.z_data_axis, self.rx_data_axis, self.ry_data_axis, self.rz_data_axis, self.position_error_norm_data_axis, self.geodesic_data_axis) = plt.subplots(8, 1)
 
         self.x_lines = [
             self.x_data_axis.plot([], [], label=label)[0]
@@ -77,6 +77,12 @@ class PoseErrorPlotter(Node):
             self.rz_data_axis.plot([], [], label=label)[0]
             for label in ("rz", "rz_des")
         ]
+        self.position_error_line = [
+            self.position_error_norm_data_axis.plot([], label="position_error_norm")[0]
+        ]
+        self.geodesic_line = [
+            self.geodesic_data_axis.plot([], label="geodesic_error")[0]
+        ]
 
         self.x_data_axis.set_xlabel("time [s]")
         self.y_data_axis.set_xlabel("time [s]")
@@ -84,6 +90,8 @@ class PoseErrorPlotter(Node):
         self.rx_data_axis.set_xlabel("time [s]")
         self.ry_data_axis.set_xlabel("time [s]")
         self.rz_data_axis.set_xlabel("time [s]")
+        self.position_error_norm_data_axis.set_xlabel("time [s]")
+        self.geodesic_data_axis.set_xlabel("time [s]")
 
         self.x_data_axis.set_ylabel("x position [m]")
         self.y_data_axis.set_ylabel("y position [m]")
@@ -91,6 +99,8 @@ class PoseErrorPlotter(Node):
         self.rx_data_axis.set_ylabel("rx orientation [rad]")
         self.ry_data_axis.set_ylabel("ry orientation [rad]")
         self.rz_data_axis.set_ylabel("rz orientation [rad]")
+        self.position_error_norm_data_axis.set_ylabel("position error norm [m]")
+        self.geodesic_data_axis.set_ylabel("geodesic metric error [rad]")
 
         for ax in [
             self.x_data_axis,
@@ -98,7 +108,9 @@ class PoseErrorPlotter(Node):
             self.z_data_axis,
             self.rx_data_axis,
             self.ry_data_axis,
-            self.rz_data_axis
+            self.rz_data_axis,
+            self.position_error_norm_data_axis,
+            self.geodesic_data_axis
         ]:
             ax.yaxis.tick_right()
 
@@ -108,6 +120,8 @@ class PoseErrorPlotter(Node):
         self.rx_data_axis.legend(loc="upper right")
         self.ry_data_axis.legend(loc="upper right")
         self.rz_data_axis.legend(loc="upper right")
+        self.position_error_norm_data_axis.legend(loc="upper right")
+        self.geodesic_data_axis.legend(loc="upper right")
 
         self.timer = self.create_timer(0.05, self.update_plot)
 
@@ -118,9 +132,9 @@ class PoseErrorPlotter(Node):
 
 
     def real_callback(self, message):
-        if len(message.data) != 6:
-            self.get_logger().warning("Expected 6 pose values")
-            return
+        #if len(message.data) != 6:
+        #    self.get_logger().warning("Expected 6 pose values")
+        #    return
         
         time = self.get_clock().now().nanoseconds * 1e-9
         if self.start_time is None:
@@ -129,9 +143,9 @@ class PoseErrorPlotter(Node):
         self.real_values.append(list(message.data))
 
     def desired_callback(self, message):
-        if len(message.data) != 6:
-            self.get_logger().warning("Expected 6 desired pose values")
-            return
+        #if len(message.data) != 6:
+        #    self.get_logger().warning("Expected 6 desired pose values")
+        #    return
             
         time = self.get_clock().now().nanoseconds * 1e-9
         if self.start_time is None:
@@ -197,6 +211,14 @@ class PoseErrorPlotter(Node):
             desired_time,
             [v[5] for v in desired_values]
         )
+        self.position_error_line[0].set_data(
+            real_time,
+            [v[6] for v in real_values]
+        )
+        self.geodesic_line[0].set_data(
+            real_time,
+            [v[7] for v in real_values]
+        )
 
         self.x_data_axis.relim()
         self.x_data_axis.autoscale_view()
@@ -210,6 +232,10 @@ class PoseErrorPlotter(Node):
         self.ry_data_axis.autoscale_view()
         self.rz_data_axis.relim()
         self.rz_data_axis.autoscale_view()
+        self.position_error_norm_data_axis.relim()
+        self.position_error_norm_data_axis.autoscale_view()
+        self.geodesic_data_axis.relim()
+        self.geodesic_data_axis.autoscale_view()
         self.figure.canvas.draw_idle()
         self.figure.canvas.flush_events()
         self.figure.suptitle(controller_name)

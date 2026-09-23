@@ -336,6 +336,11 @@ controller_interface::return_type JointImpedanceIkController::update(
   error.head(3) *= kp_pos; // Scale position error
   error.tail(3) *= kp_ori; // Scale orientation error
 
+  Eigen::Quaterniond error_quaternion(orientation_model.inverse() * orientation_d_);
+
+  double position_error_norm = (position_model - position_d_).norm();
+  double geodesic_error = 2.0 * std::acos(std::abs(error_quaternion.w()));
+
   // --- Publish real pose for visualization ---
   Eigen::Vector3d euler = transform.rotation().eulerAngles(0, 1, 2);
   std_msgs::msg::Float64MultiArray real_pose_msg;
@@ -345,7 +350,9 @@ controller_interface::return_type JointImpedanceIkController::update(
     position_model[2],
     euler[0],
     euler[1],
-    euler[2]
+    euler[2],
+    position_error_norm,
+    geodesic_error
   };
   real_pose_pub_->publish(real_pose_msg);
 
