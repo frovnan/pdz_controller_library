@@ -54,6 +54,9 @@ Navigate to the 'controllers.yaml' file located in 'franka_bringup/config/', and
       
       joint_impedance_ik_controller:
         type: pdz_contoller_library/JointImpedanceIkController
+      
+      force_impedance_hybrid_controller:
+        type: pdz_controller_library/ForceImpedanceHybridController
 
       impedance_admittance_hybrid_controller:
         type: pdz_controller_library/ImpedanceAdmittanceHybridController
@@ -116,6 +119,11 @@ Further down, you will need to add these lines:
 /**:
   riemannian_motion_policy:
     ros__parameters:
+      robot_type: "fr3"
+
+/**:
+  force_impedance_hybrid_controller:
+    ros_parameters:
       robot_type: "fr3"
 
 /**:
