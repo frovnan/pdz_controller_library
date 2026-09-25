@@ -93,12 +93,12 @@ class PoseErrorPlotter(Node):
         self.position_error_norm_data_axis.set_xlabel("time [s]")
         self.geodesic_data_axis.set_xlabel("time [s]")
 
-        self.x_data_axis.set_ylabel("x position [m]")
-        self.y_data_axis.set_ylabel("y position [m]")
-        self.z_data_axis.set_ylabel("z position [m]")
-        self.rx_data_axis.set_ylabel("rx orientation [rad]")
-        self.ry_data_axis.set_ylabel("ry orientation [rad]")
-        self.rz_data_axis.set_ylabel("rz orientation [rad]")
+        self.x_data_axis.set_ylabel("x [m]")
+        self.y_data_axis.set_ylabel("y [m]")
+        self.z_data_axis.set_ylabel("z [m]")
+        self.rx_data_axis.set_ylabel("rx [rad]")
+        self.ry_data_axis.set_ylabel("ry [rad]")
+        self.rz_data_axis.set_ylabel("rz [rad]")
         self.position_error_norm_data_axis.set_ylabel("position error norm [m]")
         self.geodesic_data_axis.set_ylabel("geodesic metric error [rad]")
 
@@ -127,7 +127,7 @@ class PoseErrorPlotter(Node):
 
         self.start_time = None
 
-        self.duration = 30.0
+        self.duration = 50.0
         self.saved = False
 
 

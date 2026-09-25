@@ -50,6 +50,7 @@ add_library(
         src/joint_impedance_controller.cpp
         src/joint_impedance_ik_controller.cpp
         src/riemannian_motion_policy.cpp
+        src/force_impedance_hybrid_controller.cpp
         src/impedance_admittance_hybrid_controller.cpp
         src/admittance_controller.cpp
         src/force_control_server.cpp

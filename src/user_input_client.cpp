@@ -75,7 +75,7 @@ int main(int argc, char **argv) {
         node->create_client<messages_fr3::srv::SetParam>("set_param");
     auto param_request = std::make_shared<messages_fr3::srv::SetParam::Request>();
 
-    int task_selection, pose_selection, param_selection;
+    int task_selection, pose_selection, trajectory_selection, param_selection;
 
     while (rclcpp::ok()){
         std::cout << "Enter the next task: \n [1] --> Change position \n [2] --> Trajectory \n [3] --> Change impedance parameters" << std::endl;
@@ -165,58 +165,167 @@ int main(int argc, char **argv) {
 
 
             case 2:{
-                std::cout << "Trajectory task selected." << std::endl;
-
-                const float radius = 0.2; // Amplitude of the trajectory
-                const float omega = M_PI / 6.0; // Frequency of the trajectory
-
-                rclcpp::Rate rate(100);
+                std::cout << "Enter new goal position: \n [1] --> Benchmark trajectory (circle in xy-plane) \n [2] --> Diagnostic trajectory selected (consecutive x, y, z sinusoids) \n";
+                std::cin >> trajectory_selection;
 
                 double t0 = rclcpp::Clock().now().seconds();
 
                 auto desired_pose_pub_ = node->create_publisher<std_msgs::msg::Float64MultiArray>("~/desired_pose", 10);
+                
+                switch (trajectory_selection){
+                    case 1:{
+                        const float amplitude_xy = 0.2; // Amplitude in xy
+                        const float amplitude_z = 0.1; // Amplitude in z
+                        const float omega = M_PI / 6.0; // Frequency of the trajectory
 
-                std::system("ros2 run pdz_controller_library plot_pose_error.py &");
+                        std::system("ros2 run pdz_controller_library plot_pose_error.py &");
 
-                while(rclcpp::ok()) {
-                    double t = rclcpp::Clock().now().seconds() - t0;
+                        while(rclcpp::ok()) {
+                            double t = rclcpp::Clock().now().seconds() - t0;
 
-                    pose_request->x = 0.4 + radius * sin(omega * t);
-                    pose_request->y = radius * cos(omega * t);
-                    pose_request->z = 0.5;
-                    pose_request->roll = M_PI;
-                    pose_request->pitch = 0.0;
-                    pose_request->yaw = 0.0;
+                            pose_request->x = 0.4 + amplitude_xy * sin(omega * t);
+                            pose_request->y = amplitude_xy * cos(omega * t);
+                            pose_request->z = 0.5 + amplitude_z * sin(1.5 * omega * t);
+                            pose_request->roll = M_PI;
+                            pose_request->pitch = 0.0;
+                            pose_request->yaw = 0.0;
 
-                    auto pose_result = pose_client->async_send_request(pose_request);
+                            auto pose_result = pose_client->async_send_request(pose_request);
 
-                    // --- Publish current desired pose for visualization ---
-                    std_msgs::msg::Float64MultiArray desired_pose_msg;
-                    desired_pose_msg.data = {   
-                        pose_request->x,
-                        pose_request->y,
-                        pose_request->z,
-                        pose_request->roll,
-                        pose_request->pitch,
-                        pose_request->yaw
-                    };
-                    desired_pose_pub_->publish(desired_pose_msg);
+                            // --- Publish current desired pose for visualization ---
+                            std_msgs::msg::Float64MultiArray desired_pose_msg;
+                            desired_pose_msg.data = {   
+                                pose_request->x,
+                                pose_request->y,
+                                pose_request->z,
+                                pose_request->roll,
+                                pose_request->pitch,
+                                pose_request->yaw
+                            };
+                            desired_pose_pub_->publish(desired_pose_msg);
 
-                    if(rclcpp::spin_until_future_complete(node, pose_result) ==  rclcpp::FutureReturnCode::SUCCESS){
-                        RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Trajectory update sent successfully.");
-                        std::cout << "Current Pose: x = " << pose_request->x << ", y = " << pose_request->y << ", z = " << pose_request->z
-                                  << ", roll = " << pose_request->roll << ", pitch = " << pose_request->pitch
-                                  << ", yaw = " << pose_request->yaw << std::endl;
-                    } else {
-                        RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Failed to call service setPose during trajectory.");
+                            if(rclcpp::spin_until_future_complete(node, pose_result) ==  rclcpp::FutureReturnCode::SUCCESS){
+                                RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Trajectory update sent successfully.");
+                                std::cout << "Current Pose: x = " << pose_request->x << ", y = " << pose_request->y << ", z = " << pose_request->z
+                                        << ", roll = " << pose_request->roll << ", pitch = " << pose_request->pitch
+                                        << ", yaw = " << pose_request->yaw << std::endl;
+                            } else {
+                                RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Failed to call service setPose during trajectory.");
+                            }
+                        }
+                        break;
                     }
+                    
+                    case 2:{
+                        const float amplitude = 0.3;
+                        const float omega = M_PI /6.0;
+                        std::system("ros2 run pdz_controller_library plot_pose_error.py &");
 
-                    //rate.sleep();
+                        while(rclcpp::ok()) {
+                            double t = rclcpp::Clock().now().seconds() - t0;
+
+                            if(t <= 15.0){
+                                pose_request->x = 0.4 + amplitude * sin(omega * t);
+                                pose_request->y = 0.0;
+                                pose_request->z = 0.5;
+                                pose_request->roll = M_PI;
+                                pose_request->pitch = 0.0;
+                                pose_request->yaw = 0.0;
+
+                                auto pose_result = pose_client->async_send_request(pose_request);
+
+                                // --- Publish current desired pose for visualization ---
+                                std_msgs::msg::Float64MultiArray desired_pose_msg;
+                                desired_pose_msg.data = {   
+                                    pose_request->x,
+                                    pose_request->y,
+                                    pose_request->z,
+                                    pose_request->roll,
+                                    pose_request->pitch,
+                                    pose_request->yaw
+                                };
+                                desired_pose_pub_->publish(desired_pose_msg);
+
+                                if(rclcpp::spin_until_future_complete(node, pose_result) ==  rclcpp::FutureReturnCode::SUCCESS){
+                                    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Trajectory update sent successfully.");
+                                    std::cout << "Current Pose: x = " << pose_request->x << ", y = " << pose_request->y << ", z = " << pose_request->z
+                                            << ", roll = " << pose_request->roll << ", pitch = " << pose_request->pitch
+                                            << ", yaw = " << pose_request->yaw << std::endl;
+                                } else {
+                                    RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Failed to call service setPose during trajectory.");
+                                }
+                            }
+                            else if(t <= 30.0){
+                                pose_request->x = 0.5;
+                                pose_request->y = amplitude * sin(omega * (t - 15));
+                                pose_request->z = 0.5;
+                                pose_request->roll = M_PI;
+                                pose_request->pitch = 0.0;
+                                pose_request->yaw = 0.0;
+
+                                auto pose_result = pose_client->async_send_request(pose_request);
+
+                                // --- Publish current desired pose for visualization ---
+                                std_msgs::msg::Float64MultiArray desired_pose_msg;
+                                desired_pose_msg.data = {   
+                                    pose_request->x,
+                                    pose_request->y,
+                                    pose_request->z,
+                                    pose_request->roll,
+                                    pose_request->pitch,
+                                    pose_request->yaw
+                                };
+                                desired_pose_pub_->publish(desired_pose_msg);
+
+                                if(rclcpp::spin_until_future_complete(node, pose_result) ==  rclcpp::FutureReturnCode::SUCCESS){
+                                    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Trajectory update sent successfully.");
+                                    std::cout << "Current Pose: x = " << pose_request->x << ", y = " << pose_request->y << ", z = " << pose_request->z
+                                            << ", roll = " << pose_request->roll << ", pitch = " << pose_request->pitch
+                                            << ", yaw = " << pose_request->yaw << std::endl;
+                                } else {
+                                    RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Failed to call service setPose during trajectory.");
+                                }        
+                            }
+                            else if(t <= 45.0){
+                                pose_request->x = 0.5;
+                                pose_request->y = 0.0;
+                                pose_request->z = 0.5 + amplitude * sin(omega * (t - 30));
+                                pose_request->roll = M_PI;
+                                pose_request->pitch = 0.0;
+                                pose_request->yaw = 0.0;
+
+                                auto pose_result = pose_client->async_send_request(pose_request);
+
+                                // --- Publish current desired pose for visualization ---
+                                std_msgs::msg::Float64MultiArray desired_pose_msg;
+                                desired_pose_msg.data = {   
+                                    pose_request->x,
+                                    pose_request->y,
+                                    pose_request->z,
+                                    pose_request->roll,
+                                    pose_request->pitch,
+                                    pose_request->yaw
+                                };
+                                desired_pose_pub_->publish(desired_pose_msg);
+
+                                if(rclcpp::spin_until_future_complete(node, pose_result) ==  rclcpp::FutureReturnCode::SUCCESS){
+                                    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Trajectory update sent successfully.");
+                                    std::cout << "Current Pose: x = " << pose_request->x << ", y = " << pose_request->y << ", z = " << pose_request->z
+                                            << ", roll = " << pose_request->roll << ", pitch = " << pose_request->pitch
+                                            << ", yaw = " << pose_request->yaw << std::endl;
+                                } else {
+                                    RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Failed to call service setPose during trajectory.");
+                                }        
+                            }
+                            else{
+                                break;
+                            }
+                        }
+                        break;
+                    }
                 }
-
                 break;
             }
-
 
             case 3:{                                
                 std::cout << "Enter new inertia: \n [1] --> N/A \n [2] --> N/A \n [3] --> N/A\n";

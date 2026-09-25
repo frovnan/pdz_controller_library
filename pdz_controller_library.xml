@@ -46,6 +46,17 @@
     </class>
 
 
+    <class
+        name="pdz_controller_library/ForceImpedanceHybridController"
+        type="pdz_controller_library::ForceImpedanceHybridController"
+        base_class_type="controller_interface::ControllerInterface">
+
+        <description>
+            The hybrid force-impedance controller separates the task-space into force- and motion-controlled directions.
+        <description>
+    </class>
+
+
 
     <class 
         name="pdz_controller_library/ImpedanceAdmittanceHybridController"
