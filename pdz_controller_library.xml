@@ -53,7 +53,7 @@
 
         <description>
             The hybrid force-impedance controller separates the task-space into force- and motion-controlled directions.
-        <description>
+        </description>
     </class>
 
 
