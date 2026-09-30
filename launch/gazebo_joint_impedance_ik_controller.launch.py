@@ -176,4 +176,10 @@ def generate_launch_description():
                 {'source_list': ['joint_states'],
                  'rate': 30}],
         ),
+        Node(
+            package='pdz_controller_library',
+            executable='plot_pose_error.py',
+            name='plot_pose_error',
+            output='screen',
+        )
     ])

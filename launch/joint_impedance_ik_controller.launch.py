@@ -135,5 +135,11 @@ def generate_launch_description():
             name='rviz2',
             output='screen',
             condition=IfCondition(use_rviz),
+        ),
+        Node(
+            package='pdz_controller_library',
+            executable='plot_pose_error.py',
+            name='plot_pose_error',
+            output='screen',
         )
     ])

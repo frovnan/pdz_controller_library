@@ -138,7 +138,7 @@ class PoseErrorPlotter(Node):
         
         time = self.get_clock().now().nanoseconds * 1e-9
         if self.start_time is None:
-            self.start_time = time
+            return
         self.real_time.append(time - self.start_time)
         self.real_values.append(list(message.data))
 
@@ -244,7 +244,7 @@ class PoseErrorPlotter(Node):
             not self.saved
             and time.time() - self.start_time > self.duration
         ):
-            results_dir = Path.home() / "franka_ros2_ws" / "src" / "pdz_controller_library" / "results"
+            results_dir = Path.home() / "franka_ros2_ws" / "src" / "pdz_controller_library" / ".gitignore" / "results"
             results_dir.mkdir(parents=True, exist_ok=True)
             filename = results_dir / f"{controller_name}.png"
             self.figure.savefig(filename, dpi=300)

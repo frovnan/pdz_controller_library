@@ -312,8 +312,8 @@ controller_interface::return_type CartesianImpedanceController::update(const rcl
   pinocchio::computeFrameJacobian(model_, data_, q_, end_effector_frame_id_, pinocchio::LOCAL_WORLD_ALIGNED, jacobian);
   pinocchio::forwardKinematics(model_, data_, q_);
   pinocchio::updateFramePlacements(model_, data_);
-  Eigen::MatrixXd g = pinocchio::computeGeneralizedGravity(model_, data_, q_);
-  coriolis = dynamic_torques - g;
+  Eigen::VectorXd gravity = pinocchio::computeGeneralizedGravity(model_, data_, q_);
+  coriolis = dynamic_torques - gravity;
   //Eigen::Affine3d transform(data_.oMf[end_effector_frame_id_]);
   Eigen::Affine3d transform;
   transform.linear() = data_.oMf[end_effector_frame_id_].rotation();  // Extract rotation
@@ -389,13 +389,17 @@ controller_interface::return_type CartesianImpedanceController::update(const rcl
     RCLCPP_ERROR(rclcpp::get_logger("cartesian_impedance_controller"), "tau_impedance contains NaN!");
     tau_impedance.setZero();
   }
-  tau_d = tau_impedance + tau_nullspace + coriolis.head(7); //add nullspace and coriolis components to desired torque
+  tau_d = tau_impedance + tau_nullspace + coriolis.head(7); // + gravity.head(7); //add nullspace and coriolis components to desired torque
   tau_d << saturateTorqueRate(tau_d, tau_J_d_M);  // Saturate torque rate to avoid discontinuities
   tau_J_d_M = tau_d;
 
   if (!tau_d.allFinite()) {
     RCLCPP_ERROR(rclcpp::get_logger("cartesian_impedance_controller"), "tau_d contains NaN!");
     tau_d.setZero(); // Set to zero or some safe value to prevent sending NaN torques to the robot
+  }
+
+  for (size_t i = 0; i < 7; ++i) {
+    tau_d[i] = std::clamp(tau_d[i], -20.0, 20.0);
   }
 
   for (size_t i = 0; i < 7; ++i) {
@@ -407,7 +411,7 @@ controller_interface::return_type CartesianImpedanceController::update(const rcl
     std::cout << "-------------------------------------------------------------------------------------" << std::endl;
     //std::cout << "F_ext_robot [N]" << std::endl;
     //std::cout << "dynamic torques" << dynamic_torques.transpose() << std::endl;
-    //std::cout << "g " << g.transpose() << std::endl;
+    std::cout << "gravity " << gravity.transpose() << std::endl;
 
     std::cout << "jacobian: " << std::endl;
     std::cout << jacobian.topLeftCorner(6,7) << std::endl;

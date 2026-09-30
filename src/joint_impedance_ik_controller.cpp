@@ -259,7 +259,9 @@ CallbackReturn JointImpedanceIkController::on_activate(
 
   // Create the subscriber in the on_activate method
   desired_pose_sub_ = get_node()->create_subscription<geometry_msgs::msg::Pose>(
-    "/joint_impedance_controller/reference_pose", 1, std::bind(&JointImpedanceIkController::reference_pose_callback, this, std::placeholders::_1));
+    "/joint_impedance_controller/reference_pose", 
+    1, 
+    std::bind(&JointImpedanceIkController::reference_pose_callback, this, std::placeholders::_1));
 
 
   RCLCPP_INFO(get_node()->get_logger(), "on_activate completed successfully.");

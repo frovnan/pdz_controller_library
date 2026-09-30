@@ -143,6 +143,11 @@ def generate_launch_description():
         output='screen'
     )
 
+    set_load = ExecuteProcess(
+        cmd=[os.path.join(get_package_share_directory('pdz_controller_library'), 'launch', 'set_load.sh')],
+        output='screen',
+    )
+
     return LaunchDescription([
         load_gripper_launch_argument,
         franka_hand_launch_argument,
@@ -176,4 +181,11 @@ def generate_launch_description():
                 {'source_list': ['joint_states'],
                  'rate': 30}],
         ),
+        set_load,
+        Node(
+            package='pdz_controller_library',
+            executable='plot_pose_error.py',
+            name='plot_pose_error',
+            output='screen',
+        )
     ])
