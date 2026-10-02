@@ -1,8 +1,11 @@
+#include <pdz_controller_library/trajectory_pose_selector.hpp>
+
 #include <rclcpp/rclcpp.hpp>
 #include "messages_fr3/srv/set_pose.hpp"
 #include "messages_fr3/srv/set_param.hpp"
 
 #include <std_msgs/msg/float64_multi_array.hpp>
+#include <std_msgs/msg/u_int8.hpp>
 
 #include <chrono>
 #include <cstdlib>
@@ -172,40 +175,135 @@ int main(int argc, char **argv) {
                 double t0 = rclcpp::Clock().now().seconds();
 
                 auto desired_pose_pub_ = node->create_publisher<std_msgs::msg::Float64MultiArray>("~/desired_pose", 10);
-
-                std::array<double, 6> pose_A; 
-                std::array<double, 6> pose_B;
+                auto trajectory_pub_ = node->create_publisher<std_msgs::msg::UInt8>("~/trajectory", 10);
                 
                 switch (trajectory_selection){
                     case 1:{
-                        
+                        TrajectorySelector generator;
+                        const double path_length = 0.7; // Length of the path in meters
+                        const double tolerance = 0.05; // Tolerance for the distance between points
+
+                        const double angle_distance = M_PI / 4.0; // Angle distance in radians
+                        const double angle_tolerance = M_PI / 36.0; // Angle tolerance in radians
+
+                        auto position_A = generator.generate_position();
+                        auto position_B = generator.generate_position_within_distance(position_A, path_length, tolerance);
+                        auto position_C = generator.generate_position_within_distance(position_B, path_length, tolerance);
+                        auto position_D = generator.generate_position_within_distance(position_C, path_length, tolerance);
+
+                        auto orientations_A = generator.generate_orientations(200);
+                        auto orientations_B = generator.generate_orientations(200);
+                        auto orientations_C = generator.generate_orientations(200);
+                        auto orientations_D = generator.generate_orientations(200);
 
                         while(rclcpp::ok()) {
+                            double T = 10.0; // Total time for the trajectory
                             double t = rclcpp::Clock().now().seconds() - t0;
-                            if (false){
 
+                            if (t <= 5.0) { // Move to position A
+                                pose_request->x = position_A[0];
+                                pose_request->y = position_A[1];
+                                pose_request->z = position_A[2];
+                                pose_request->roll = M_PI;
+                                pose_request->pitch = 0.0;
+                                pose_request->yaw = 0.0;
                             }
 
+                            pose_request->x = position_A[0] + (position_B[0] - position_A[0]) * (t - 5.0) / T;
+                            pose_request->y = position_A[1] + (position_B[1] - position_A[1]) * (t - 5.0) / T;
+                            pose_request->z = position_A[2] + (position_B[2] - position_A[2]) * (t - 5.0) / T;
+                            pose_request->roll = M_PI;
+                            pose_request->pitch = 0.0;
+                            pose_request->yaw = 0.0;
 
-                            else{
-                                break;
+                            auto pose_result = pose_client->async_send_request(pose_request);
+
+                            // --- Publish current desired pose for visualization ---
+                            std_msgs::msg::Float64MultiArray desired_pose_msg;
+                            desired_pose_msg.data = {   
+                                pose_request->x,
+                                pose_request->y,
+                                pose_request->z,
+                                pose_request->roll,
+                                pose_request->pitch,
+                                pose_request->yaw
+                            };
+                            desired_pose_pub_->publish(desired_pose_msg);
+
+                            // --- Publish trajectory type ---
+                            std_msgs::msg::UInt8 trajectory_msg;
+                            trajectory_msg.data = trajectory_selection;
+                            trajectory_pub_->publish(trajectory_msg);
+
+                            if(rclcpp::spin_until_future_complete(node, pose_result) ==  rclcpp::FutureReturnCode::SUCCESS){
+                                RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Trajectory update sent successfully.");
+                                std::cout << "Current Pose: x = " << pose_request->x << ", y = " << pose_request->y << ", z = " << pose_request->z
+                                        << ", roll = " << pose_request->roll << ", pitch = " << pose_request->pitch
+                                        << ", yaw = " << pose_request->yaw << std::endl;
+                            } else {
+                                RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Failed to call service setPose during trajectory.");
                             }
                         }
-                        break;
+                        break;                        
                     }
 
                     case 2:{
-                        const float amplitude = 0.3;
-                        const float omega = M_PI /6.0;
+                        const float omega = M_PI / 10.0;
+
+                        TrajectorySelector generator;
+                        const double path_length = 0.7; // Length of the path in meters
+                        const double tolerance = 0.05; // Tolerance for the distance between points
+
+                        auto position_A = generator.generate_position();
+                        auto position_B = generator.generate_position_within_distance(position_A, path_length, tolerance);
+                        auto position_C = generator.generate_position_within_distance(position_B, path_length, tolerance);
+                        auto position_D = generator.generate_position_within_distance(position_C, path_length, tolerance);
 
                         while(rclcpp::ok()) {
                             double t = rclcpp::Clock().now().seconds() - t0;
-                            if (false){
 
+                            if (t <= 5.0) { // Move to position A
+                                pose_request->x = position_A[0];
+                                pose_request->y = position_A[1];
+                                pose_request->z = position_A[2];
+                                pose_request->roll = position_A[3];
+                                pose_request->pitch = position_A[4];
+                                pose_request->yaw = position_A[5];
                             }
-                            
-                            else{
-                                break;
+
+                            pose_request->x = (position_A[0] + position_B[0]) / 2.0 + (position_A[0] - position_B[0]) / 2.0 * cos(omega * (t - 5.0));
+                            pose_request->y = (position_A[1] + position_B[1]) / 2.0 + (position_A[1] - position_B[1]) / 2.0 * cos(omega * (t - 5.0));
+                            pose_request->z = (position_A[2] + position_B[2]) / 2.0 + (position_A[2] - position_B[2]) / 2.0 * cos(omega * (t - 5.0));
+                            pose_request->roll = M_PI;
+                            pose_request->pitch = 0.0;
+                            pose_request->yaw = 0.0;
+
+                            auto pose_result = pose_client->async_send_request(pose_request);
+
+                            // --- Publish current desired pose for visualization ---
+                            std_msgs::msg::Float64MultiArray desired_pose_msg;
+                            desired_pose_msg.data = {   
+                                pose_request->x,
+                                pose_request->y,
+                                pose_request->z,
+                                pose_request->roll,
+                                pose_request->pitch,
+                                pose_request->yaw
+                            };
+                            desired_pose_pub_->publish(desired_pose_msg);
+
+                            // --- Publish trajectory type ---
+                            std_msgs::msg::UInt8 trajectory_msg;
+                            trajectory_msg.data = trajectory_selection;
+                            trajectory_pub_->publish(trajectory_msg);
+
+                            if(rclcpp::spin_until_future_complete(node, pose_result) ==  rclcpp::FutureReturnCode::SUCCESS){
+                                RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Trajectory update sent successfully.");
+                                std::cout << "Current Pose: x = " << pose_request->x << ", y = " << pose_request->y << ", z = " << pose_request->z
+                                        << ", roll = " << pose_request->roll << ", pitch = " << pose_request->pitch
+                                        << ", yaw = " << pose_request->yaw << std::endl;
+                            } else {
+                                RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Failed to call service setPose during trajectory.");
                             }
                         }
                         break;
@@ -240,6 +338,11 @@ int main(int argc, char **argv) {
                             };
                             desired_pose_pub_->publish(desired_pose_msg);
 
+                            // --- Publish trajectory type ---
+                            std_msgs::msg::UInt8 trajectory_msg;
+                            trajectory_msg.data = trajectory_selection;
+                            trajectory_pub_->publish(trajectory_msg);
+
                             if(rclcpp::spin_until_future_complete(node, pose_result) ==  rclcpp::FutureReturnCode::SUCCESS){
                                 RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Trajectory update sent successfully.");
                                 std::cout << "Current Pose: x = " << pose_request->x << ", y = " << pose_request->y << ", z = " << pose_request->z
@@ -251,8 +354,15 @@ int main(int argc, char **argv) {
                         }
                         break;
                     }
-                    
-                    
+                    default:{
+                        pose_request->x = 0.5;
+                        pose_request->y = 0.0;
+                        pose_request->z = 0.4;
+                        pose_request->roll = M_PI;
+                        pose_request->pitch = 0.0;
+                        pose_request->yaw = 0.0;
+                        break;
+                    }
                 }
                 break;
             }

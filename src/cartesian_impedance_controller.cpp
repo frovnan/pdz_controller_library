@@ -431,6 +431,7 @@ controller_interface::return_type CartesianImpedanceController::update(const rcl
     //std::cout << "coriolis: " << coriolis.transpose() << std::endl;
     // std::cout << "Inertia scaling [m]: " << std::endl;
     // std::cout << T << std::endl;
+    std::cout << "joint positions: " << q_.transpose() << std::endl;
     std::cout << "position: " << position.transpose() << std::endl;
     std::cout << "orientation: " << orientation << std::endl;
     std::cout << "error: " << error.transpose() << std::endl;

@@ -5,7 +5,7 @@ from collections import deque
 import matplotlib.pyplot as plt
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import Float64MultiArray
+from std_msgs.msg import Float64MultiArray, UInt8
 import subprocess
 import re
 import time
@@ -38,6 +38,9 @@ class PoseErrorPlotter(Node):
         desired_topic = self.declare_parameter(
             "desired_topic", "/user_input_client/desired_pose"
         ).value
+        trajectory_topic = self.declare_parameter(
+            "trajectory_topic", f"/{controller_name}/trajectory"
+        ).value
 
         self.real_time = deque(maxlen=2000)
         self.real_values = deque(maxlen=2000)
@@ -49,6 +52,9 @@ class PoseErrorPlotter(Node):
         )
         self.desired_subscription = self.create_subscription(
             Float64MultiArray, desired_topic, self.desired_callback, 10
+        )
+        self.trajectory_subscription = self.create_subscription(
+            UInt8, trajectory_topic, self.trajectory_callback, 10
         )
 
         self.figure, (self.x_data_axis, self.y_data_axis, self.z_data_axis, self.rx_data_axis, self.ry_data_axis, self.rz_data_axis, self.position_error_norm_data_axis, self.geodesic_data_axis) = plt.subplots(8, 1)
@@ -127,7 +133,7 @@ class PoseErrorPlotter(Node):
 
         self.start_time = None
 
-        self.duration = 50.0
+        self.duration = 60.0
         self.saved = False
 
 
@@ -152,6 +158,14 @@ class PoseErrorPlotter(Node):
             self.start_time = time
         self.desired_time.append(time - self.start_time)
         self.desired_values.append(list(message.data))
+
+    def plot_title(self):
+        if self.trajectory_topic == 1:
+            return f"{controller_name}_linear_trajectory"
+        elif self.trajectory_topic == 2:
+            return f"{controller_name}_sinusoidal_trajectory"
+        else:
+            return f"{controller_name}_arbitrary_trajectory"
 
     def update_plot(self):
         if not self.real_values:
@@ -238,7 +252,7 @@ class PoseErrorPlotter(Node):
         self.geodesic_data_axis.autoscale_view()
         self.figure.canvas.draw_idle()
         self.figure.canvas.flush_events()
-        self.figure.suptitle(controller_name)
+        self.figure.suptitle(self.plot_title())
 
         if (
             not self.saved
@@ -246,7 +260,7 @@ class PoseErrorPlotter(Node):
         ):
             results_dir = Path.home() / "franka_ros2_ws" / "src" / "pdz_controller_library" / ".gitignore" / "results"
             results_dir.mkdir(parents=True, exist_ok=True)
-            filename = results_dir / f"{controller_name}.png"
+            filename = results_dir / f"{self.plot_title()}.png"
             self.figure.savefig(filename, dpi=300)
 
             self.saved = True

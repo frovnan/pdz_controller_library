@@ -55,6 +55,7 @@ add_library(
         src/admittance_controller.cpp
         src/force_control_server.cpp
         src/user_input_server.cpp
+        src/trajectory_pose_selector.cpp
 )
 target_include_directories(
         ${PROJECT_NAME}
