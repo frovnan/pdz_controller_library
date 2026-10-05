@@ -6,11 +6,11 @@ A ROS 2 Humble package created as part of my Bachelor's thesis. It contains vari
 
 These include:
 
-* [Cartesian Impedance Controller](https://github.com/LucasG2001/cartesian_impedance_control)
-* [Admittance Controller](https://github.com/LucasG2001/admittance_control)
-* Joint Impedance (IK) Controller
-* [Hybrid Force/Impedance Contoller](https://github.com/krombier/Bachelor_Thesis_Force_Control)
-* [Hybrid Impedance/Admittance Controller](https://github.com/enjoyericbu/hybridcontroller)
+* [Cartesian Impedance Control](https://github.com/LucasG2001/cartesian_impedance_control)
+* [Admittance Control](https://github.com/LucasG2001/admittance_control)
+* Joint Impedance Control
+* [Hybrid Force/Impedance Contol](https://github.com/krombier/Bachelor_Thesis_Force_Control)
+* [Hybrid Impedance/Admittance Control](https://github.com/enjoyericbu/hybridcontroller)
 * [Riemann Motion Policy](https://github.com/MatteoBodmer/riemannian_motion_policy_mb)
 * [Singularity and Oscillation Avoidance](https://github.com/GeniusT31/src)
 

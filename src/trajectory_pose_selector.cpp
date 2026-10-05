@@ -19,8 +19,8 @@ TrajectorySelector::TrajectorySelector()
       uniform_(-0.5, 0.5)
 {
     const std::string urdf_path =
-        ament_index_cpp::get_package_share_directory("franka_description")
-        + "/robots/fr3/fr3.urdf";
+        ament_index_cpp::get_package_share_directory("pdz_controller_library")
+        + "/urdf/robot.urdf";
 
     pinocchio::urdf::buildModel(urdf_path, model_);
 
@@ -34,55 +34,54 @@ TrajectorySelector::TrajectorySelector()
     std::cout << "EE frame ID = " << ee_frame_id_ << "\n";
 }
 
-double TrajectorySelector::distance(const std::array<double, 3>& a, const std::array<double, 3>& b)
-{
-    return std::sqrt(
-        std::pow(a[0] - b[0], 2) +
-        std::pow(a[1] - b[1], 2) +
-        std::pow(a[2] - b[2], 2)
-    );
-}
-
 double TrajectorySelector::geodesic_distance(const Eigen::Quaterniond& q1, const Eigen::Quaterniond& q2)
 {
+    // Geodesic distance between two quaternions
     Eigen::Quaterniond quat_product = q1.inverse() * q2;
     return 2.0 * std::acos(std::abs(quat_product.w()));
 }
 
-std::array<double, 3> TrajectorySelector::generate_position()
+Eigen::Vector3d TrajectorySelector::generate_position()
 {
-    std::array<double, 3> position;
-
+    Eigen::Vector3d position;
+    
     do {
+        // Generate a random position...
         position[0] = uniform_(generator_);
         position[1] = uniform_(generator_);
         position[2] = uniform_(generator_);
     } while (
-        std::sqrt(
-            std::pow(position[0], 2) + 
-            std::pow(position[1], 2) + 
-            std::pow(position[2], 2)
-        ) > 0.75
+        // ...within a sphere of radius 0.75m, and...
+        position.norm() > 0.75 ||
+
+        // ...beyond a sphere of radius 0.25m, and...
+        position.norm() < 0.25 ||
+
+        // ...ensure the z-coordinate is above 0.1m to avoid collisions with the table
+        position[2] < 0.1 
     );
 
     return position;
 }
 
-std::array<double, 3> TrajectorySelector::generate_position_within_distance(
-    const std::array<double, 3>& previous_position, 
+Eigen::Vector3d TrajectorySelector::generate_position_within_distance(
+    const Eigen::Vector3d& previous_position, 
     double target_distance, 
     double tolerance)
 {
-    std::array<double, 3> position;
+    Eigen::Vector3d position;
 
     do {
+        // Generate a random position within the constrained region...
         position = generate_position();
     } while (
-        std::abs(distance(previous_position, position) - target_distance) > tolerance
+        // ...that is within the specified distance from the previous position
+        std::abs((previous_position - position).norm() - target_distance) > tolerance
     );
 
     return position;
 }
+
 
 std::vector<Eigen::Quaterniond> TrajectorySelector::generate_orientations(int number_of_orientations)
 {
@@ -112,18 +111,8 @@ std::vector<Eigen::Quaterniond> TrajectorySelector::generate_orientations(int nu
     return orientations;
 }
 
-std::array<Eigen::Quaterniond> TrajectorySelector::choose_orientation_within_distance( 
-    const std::array<Eigen::Quaterniond> filtered_orientations,
-    const std::array<double, 3>& previous_orientation,
-    const double angle_distance, 
-    const double angle_tolerance)
-{
 
-}
-
-bool TrajectorySelector::solve_ik(
-    const CartesianPose& desired_pose,
-    Eigen::VectorXd& q)
+bool TrajectorySelector::solve_ik(const CartesianPose& desired_pose, Eigen::VectorXd& q)
 {
     const int max_iterations = 1000;
     const double tolerance = 1e-5;
@@ -134,13 +123,9 @@ bool TrajectorySelector::solve_ik(
     {
         pinocchio::forwardKinematics(model_, data_, q);
 
-        pinocchio::updateFramePlacement(
-            model_,
-            data_,
-            ee_frame_id_);
+        pinocchio::updateFramePlacement(model_, data_, ee_frame_id_);
 
-        const pinocchio::SE3& current_pose =
-            data_.oMf[ee_frame_id_];
+        const pinocchio::SE3& current_pose = data_.oMf[ee_frame_id_];
 
         // --------------------------------------------------
         // Position error
@@ -155,8 +140,7 @@ bool TrajectorySelector::solve_ik(
         Eigen::Quaterniond q_error = q_current.inverse() * desired_pose.orientation;
 
         // Make sure we take the shortest quaternion path
-        if (q_error.w() < 0.0)
-        {
+        if (q_error.w() < 0.0){
             q_error.coeffs() *= -1.0;
         }
 
@@ -173,16 +157,13 @@ bool TrajectorySelector::solve_ik(
         // --------------------------------------------------
         // Check convergence
         // --------------------------------------------------
-
-        if (error.norm() < tolerance)
-        {
+        if (error.norm() < tolerance){
             return true;
         }
 
         // --------------------------------------------------
         // Jacobian
         // --------------------------------------------------
-
         Eigen::Matrix<double, 6, 9> J_full;
 
         pinocchio::computeFrameJacobian(model_, data_, q, ee_frame_id_, pinocchio::LOCAL_WORLD_ALIGNED, J_full);
@@ -193,13 +174,11 @@ bool TrajectorySelector::solve_ik(
         // --------------------------------------------------
         // Damped pseudoinverse
         // --------------------------------------------------
-
         Eigen::Matrix<double, 7, 6> J_pinv = J.transpose() * (J * J.transpose() + damping * damping * Eigen::Matrix<double, 6, 6>::Identity()).inverse();
 
         // --------------------------------------------------
         // Joint update
         // --------------------------------------------------
-
         Eigen::Matrix<double, 7, 1> dq = J_pinv * error;
 
         q.head<7>() += step_size * dq;
@@ -209,105 +188,84 @@ bool TrajectorySelector::solve_ik(
 }
 
 
-
-double TrajectorySelector::manipulability(
-        const Eigen::Matrix<double, 6, 7>& J)
+double TrajectorySelector::manipulability(const Eigen::Matrix<double, 6, 7>& J)
 {
-    Eigen::JacobiSVD<Eigen::Matrix<double, 6, 7>> svd(
-        J,
-        Eigen::ComputeThinU | Eigen::ComputeThinV);
+    /*
+    Eigen::JacobiSVD<Eigen::Matrix<double, 6, 7>> svd(J, Eigen::ComputeThinU | Eigen::ComputeThinV);
 
-    double w = 1.0;
+    double mu = 1.0;
 
     for (int i = 0; i < 6; ++i)
     {
-        w *= svd.singularValues()(i);
+        mu *= svd.singularValues()(i);
     }
+    */
 
-    return w;
+    // Using the sqrt(det(J * J^T)) to compute manipulability, as proposed by Yoshikawa (1985)
+    double mu = std::sqrt((J * J.transpose()).determinant());
+
+    return mu;
 }
 
 
-
-std::vector<CartesianPose> TrajectorySelector::filter_poses(
+std::vector<Candidate> TrajectorySelector::filter_poses(
     const Eigen::Vector3d& position,
-    int number_of_orientations,
-    int number_to_keep)
+    const std::vector<Eigen::Quaterniond>& orientations,
+    int number_to_keep,
+    const Eigen::VectorXd& initial_q)
 {
-    struct Candidate
-    {
-        CartesianPose pose;
-        Eigen::VectorXd q;
-        double manipulability;
-    };
-
     std::vector<Candidate> candidates;
-
-    auto orientations =
-        generate_orientations(number_of_orientations);
 
     for (const auto& orientation : orientations)
     {
+        // Desired EE pose
         CartesianPose pose;
         pose.position = position;
         pose.orientation = orientation;
 
-        Eigen::VectorXd q =
-            Eigen::VectorXd::Zero(model_.nq);
+        // Initial guess for IK solver (= previous joint configuration)
+        Eigen::VectorXd q = initial_q;
 
-        // TODO:
-        // replace this with your actual reasonable
-        // initial FR3 configuration
-        q[7] = 0.04;
-        q[8] = 0.04;
-
-        if (!solve_ik(pose, q))
-        {
+        // Solve IK for the desired pose
+        if (!solve_ik(pose, q)){
             continue;
         }
+        // Note: q is now the joint configuration that achieves the desired pose (IK solution)
 
+
+        // Compute Jacobian at IK solution
         Eigen::Matrix<double, 6, 9> J_full;
 
-        pinocchio::computeFrameJacobian(
-            model_,
-            data_,
-            q,
-            ee_frame_id_,
-            pinocchio::LOCAL_WORLD_ALIGNED,
-            J_full);
+        pinocchio::computeFrameJacobian(model_, data_, q, ee_frame_id_, pinocchio::LOCAL_WORLD_ALIGNED, J_full);
 
-        Eigen::Matrix<double, 6, 7> J =
-            J_full.leftCols<7>();
+        Eigen::Matrix<double, 6, 7> J = J_full.leftCols<7>();
 
-        double w = manipulability(J);
+        // Compute manipulability at IK solution
+        double mu = manipulability(J);
 
+        // Store desired pose, corresponding joint angles, and manipulability at that joint configuration
         candidates.push_back({
             pose,
             q,
-            w
+            mu
         });
     }
 
     // Highest manipulability first
     std::sort(
-        candidates.begin(),
-        candidates.end(),
-        [](const Candidate& a, const Candidate& b)
-        {
-            return a.manipulability >
-                   b.manipulability;
-        });
+        candidates.begin(), candidates.end(),
+        [](const Candidate& a, const Candidate& b){
+            return a.manipulability > b.manipulability;
+        }
+    );
 
-    std::vector<CartesianPose> result;
+    std::vector<Candidate> result;
 
-    int count =
-        std::min(
-            number_to_keep,
-            static_cast<int>(candidates.size()));
+    int count = std::min(number_to_keep, static_cast<int>(candidates.size()));
 
     for (int i = 0; i < count; ++i)
     {
-        result.push_back(candidates[i].pose);
+        result.push_back(candidates[i]);
 
         std::cout
             << "Candidate " << i
@@ -320,42 +278,46 @@ std::vector<CartesianPose> TrajectorySelector::filter_poses(
 }
 
 
-/*
-int main(){
-    // Load robot model
-    const std::string urdf_path =
-        ament_index_cpp::get_package_share_directory("franka_description") +
-        "/robots/fr3/fr3.urdf";
 
-    pinocchio::Model model;
-    pinocchio::urdf::buildModel(urdf_path, model);
+Candidate TrajectorySelector::select_random_candidate(const std::vector<Candidate>& candidates, const std::vector<int>& valid_indices)
+{
+    std::uniform_int_distribution<int> distribution(0, static_cast<int>(valid_indices.size()) - 1);
 
-    pinocchio::Data data(model);
+    int index = valid_indices[distribution(generator_)];
 
-    std::cout << "nq = " << model.nq << std::endl;
-    std::cout << "nv = " << model.nv << std::endl;
-
-    int ee_frame_id = model.getFrameId("fr3_hand");
-
-    
-    // Define candidate positions
-    Eigen::Vector3d p_des = {0.4, 0.0, 0.4};
-
-    Eigen::VectorXd initial_q = {-0.016473, -0.82876, 0.00329376, -2.60491, 0.00381832, 1.76963, 0.676789, 0, 0};
-
-    // Generate orientations
-
-    // Solve IK for joint configurations
-
-    // Evaluate Jacobian
-
-    // Evaluate manipulability
-
-
-    // Select poses
-
-    // Save results
-
-    return 0;
+    return candidates[index];
 }
-*/
+
+Candidate TrajectorySelector::select_candidate_with_angle_constraint( 
+    const std::vector<Candidate>& candidates,
+    const Eigen::Quaterniond& previous_orientation,
+    const double angle_distance, 
+    const double angle_tolerance)
+{
+    // Pick indices of candidates that satisfy the angle constraint
+    std::vector<int> valid_indices;
+
+    std::cout << "valid indices: ";
+    for (unsigned int i = 0; i < candidates.size(); ++i){
+        double angle_diff = geodesic_distance(previous_orientation, candidates[i].pose.orientation);
+
+        if (std::abs(angle_diff - angle_distance) <= angle_tolerance){
+            std::cout << i << ", ";
+            valid_indices.push_back(i);
+        }
+    }
+    std::cout << "\n";
+
+    // Pick random candidate from valid candidates
+    Candidate candidate = select_random_candidate(candidates, valid_indices);
+
+    return candidate;
+}
+
+
+std::array<double, 6> TrajectorySelector::quaternion_to_euler(const CartesianPose& pose)
+{
+    Eigen::Vector3d euler_angles = pose.orientation.toRotationMatrix().eulerAngles(0, 1, 2);
+
+    return {pose.position[0], pose.position[1], pose.position[2], euler_angles[0], euler_angles[1], euler_angles[2]};
+}

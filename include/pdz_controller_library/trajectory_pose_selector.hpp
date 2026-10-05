@@ -10,34 +10,47 @@
 #include <pinocchio/parsers/urdf.hpp>
 #include <pinocchio/algorithm/rnea.hpp>
 
-struct CartesianPose
-{
+struct CartesianPose {
     Eigen::Vector3d position;
     Eigen::Quaterniond orientation;
 };
 
-class TrajectorySelector
-{
+struct Candidate {
+    CartesianPose pose;
+    Eigen::VectorXd q;
+    double manipulability;
+};
+
+class TrajectorySelector {
     public:
 
         explicit TrajectorySelector();
 
-        std::array<double, 3> generate_position();
-        std::array<double, 3> generate_position_within_distance(
-            const std::array<double, 3>& previous_position, 
+        Eigen::Vector3d generate_position();
+        Eigen::Vector3d generate_position_within_distance(
+            const Eigen::Vector3d& previous_position, 
             const double target_distance, 
             const double tolerance);
+
         std::vector<Eigen::Quaterniond> generate_orientations(int number_of_orientations);
-        std::array<Eigen::Quaterniond> choose_orientation_within_distance(
-            const std::array<Eigen::Quaterniond> filtered_orientations,
-            const std::array<double, 3>& previous_orientation,
-            const double angle_distance,
+
+        std::vector<Candidate> filter_poses(
+            const Eigen::Vector3d& position,
+            const std::vector<Eigen::Quaterniond>& orientations,
+            int number_to_keep,
+            const Eigen::VectorXd& initial_q);
+
+        Candidate select_random_candidate(
+            const std::vector<Candidate>& candidates, 
+            const std::vector<int>& valid_indices);
+
+        Candidate select_candidate_with_angle_constraint(
+            const std::vector<Candidate>& candidates,
+            const Eigen::Quaterniond& previous_orientation,
+            const double angle_distance, 
             const double angle_tolerance);
 
-        std::vector<CartesianPose> filter_poses(
-            const Eigen::Vector3d& position,
-            int number_of_orientations,
-            int number_to_keep);
+        std::array<double, 6> quaternion_to_euler(const CartesianPose& pose);
 
     private:
 
@@ -45,7 +58,6 @@ class TrajectorySelector
 
         bool solve_ik(const CartesianPose& desired_pose, Eigen::VectorXd& q);
         
-        double distance(const std::array<double, 3>& a, const std::array<double, 3>& b);
         double geodesic_distance(const Eigen::Quaterniond& q1, const Eigen::Quaterniond& q2);
 
         pinocchio::Model model_;
