@@ -34,7 +34,8 @@ TrajectorySelector::TrajectorySelector()
     std::cout << "EE frame ID = " << ee_frame_id_ << "\n";
 }
 
-Eigen::Vector3d TrajectorySelector::generate_position() {
+Eigen::Vector3d TrajectorySelector::generate_position()
+{
     // Uniform distribution of x,y,z within allowed volume
     const double r_min = 0.40; // Minimum distance to origin
     const double r_max = 0.75; // Maximum distance to origin
@@ -61,24 +62,56 @@ Eigen::Vector3d TrajectorySelector::generate_position() {
     return position;
 }
 
-Eigen::Vector3d TrajectorySelector::generate_position_within_distance(
+Eigen::Vector3d TrajectorySelector::generate_position_with_constraints(
     const Eigen::Vector3d& previous_position, 
     double target_distance, 
     double tolerance)
 {
-    Eigen::Vector3d position;
+    Eigen::Vector3d new_position;
 
     do {
         // Generate a random position within the constrained region...
-        position = generate_position();
+        new_position = generate_position();
     } while (
         // ...that is within the specified distance from the previous position
-        std::abs((previous_position - position).norm() - target_distance) > tolerance
+        std::abs((previous_position - new_position).norm() - target_distance) > tolerance &&
+        !segment_clear_of_base(previous_position, new_position)
     );
 
-    return position;
+    return new_position;
 }
 
+bool TrajectorySelector::segment_clear_of_base(
+    const Eigen::Vector3d& A,
+    const Eigen::Vector3d& B)
+{
+    // Approximate robot base as cylinder with base radius and base height
+    const double base_radius = 0.075;
+    const double clearance = 0.05;
+    const double forbidden_radius = base_radius + clearance;
+
+    const double base_height = 0.45;
+
+    // Divide line between A and B into 100 points
+    const int samples = 100;
+
+    for (int i = 0; i <= samples; ++i)
+    {
+        double t = static_cast<double>(i) / samples;
+
+        Eigen::Vector3d p = A + t * (B - A);
+
+        double radial_distance = std::sqrt(p.x() * p.x() + p.y() * p.y());
+
+        // Check whether point is inside cylinder
+        if (p.z() < base_height && radial_distance < forbidden_radius)
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
 
 std::vector<Eigen::Quaterniond> TrajectorySelector::generate_orientations(int number_of_orientations)
 {
@@ -325,4 +358,37 @@ std::array<double, 6> TrajectorySelector::quaternion_to_euler(const CartesianPos
     Eigen::Vector3d euler_angles = pose.orientation.toRotationMatrix().eulerAngles(0, 1, 2);
 
     return {pose.position[0], pose.position[1], pose.position[2], euler_angles[0], euler_angles[1], euler_angles[2]};
+}
+
+std::vector<CartesianPose> TrajectorySelector::generate_poses(Eigen::VectorXd& initial_q, int number_of_points){
+    // --------- Parameters -----------
+    const double path_length = 0.5; // Length of the path in meters
+    const double tolerance = 0.05; // Tolerance for the distance between points
+
+    const double angle_distance = 45 * M_PI / 180.0; // Angle distance in radians
+    const double angle_tolerance = 7.5 * M_PI / 180.0; // Angle tolerance in radians
+
+    const int n_orientations = 200; // Number of orientations to generate for each point
+    const int number_to_keep = 15; // Number of candidates to keep after filtering based on manipulability
+
+    std::vector<Candidate> candidates;
+    std::vector<CartesianPose> poses;
+
+    for (int i = 0; i < number_of_points; ++i) {
+        std::vector<Candidate> filtered_poses;
+        if (i == 0) {
+            auto position = generate_position();
+            auto orientations = generate_orientations(n_orientations);
+            filtered_poses = filter_poses(position, orientations, number_to_keep, initial_q);
+
+        } else {
+            auto position = generate_position_with_constraints(candidates[i-1].pose.position, path_length, tolerance);
+            auto orientations = generate_orientations_within_distance(n_orientations, candidates[i-1].pose.orientation, angle_distance, angle_tolerance);
+            filtered_poses = filter_poses(position, orientations, number_to_keep, candidates[i-1].q);
+        }
+        auto pose = select_random_candidate(filtered_poses);
+        candidates.push_back(pose);
+        poses.push_back(pose.pose);
+    }
+    return poses;
 }

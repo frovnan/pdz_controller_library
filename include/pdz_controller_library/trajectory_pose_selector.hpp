@@ -26,13 +26,31 @@ class TrajectorySelector {
 
         explicit TrajectorySelector();
 
+        std::vector<CartesianPose> generate_poses(
+            Eigen::VectorXd& initial_q, int number_of_points);
+
+        std::array<double, 6> quaternion_to_euler(
+            const CartesianPose& pose);
+
+    private:
+
         Eigen::Vector3d generate_position();
-        Eigen::Vector3d generate_position_within_distance(
+
+
+        bool segment_clear_of_base(
+            const Eigen::Vector3d& start, 
+            const Eigen::Vector3d& end);
+
+
+        Eigen::Vector3d generate_position_with_constraints(
             const Eigen::Vector3d& previous_position, 
             const double target_distance, 
             const double tolerance);
 
-        std::vector<Eigen::Quaterniond> generate_orientations(int number_of_orientations);
+
+        std::vector<Eigen::Quaterniond> generate_orientations(
+            int number_of_orientations);
+
 
         std::vector<Eigen::Quaterniond> generate_orientations_within_distance(
             int number_of_orientations,
@@ -40,21 +58,25 @@ class TrajectorySelector {
             const double angle_distance,
             const double angle_tolerance);
 
+        bool solve_ik(
+            const CartesianPose& desired_pose, 
+            Eigen::VectorXd& q);
+
+
+        double manipulability(
+            const Eigen::Matrix<double, 6, 7>& J);
+
+
         std::vector<Candidate> filter_poses(
             const Eigen::Vector3d& position,
             const std::vector<Eigen::Quaterniond>& orientations,
             int number_to_keep,
             const Eigen::VectorXd& initial_q);
 
-        Candidate select_random_candidate(const std::vector<Candidate>& candidates);
 
-        std::array<double, 6> quaternion_to_euler(const CartesianPose& pose);
+        Candidate select_random_candidate(
+            const std::vector<Candidate>& candidates);
 
-    private:
-
-        double manipulability(const Eigen::Matrix<double, 6, 7>& J);
-
-        bool solve_ik(const CartesianPose& desired_pose, Eigen::VectorXd& q);
 
         pinocchio::Model model_;
         pinocchio::Data data_;

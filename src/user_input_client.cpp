@@ -182,84 +182,15 @@ int main(int argc, char **argv) {
                     case 1:{
                         TrajectorySelector generator;
 
-                        // --------- Parameters -----------
-                        const double path_length = 0.5; // Length of the path in meters
-                        const double tolerance = 0.05; // Tolerance for the distance between points
-
-                        const double angle_distance = 45 * M_PI / 180.0; // Angle distance in radians
-                        const double angle_tolerance = 7.5 * M_PI / 180.0; // Angle tolerance in radians
-
-                        const int n_orientations = 200; // Number of orientations to generate for each point
-
                         // Initial joint configuration for the first pose (can be set to a default or previous known configuration,
-                        // in this case, starting position of cartesian_impedance_controller start position in gazebo launch file)
+                        // in this case, starting position of cartesian_impedance_controller start position in gazebo launch file
                         Eigen::VectorXd initial_q(9);
                         initial_q << -0.016473, -0.82876, 0.00329376, -2.60491, 0.00381832, 1.76963, 0.676789, 0, 0;
 
-                        const int number_to_keep = 15; // Number of candidates to keep after filtering based on manipulability
+                        int number_of_points = 4;
 
-                        // -------------- A ----------------
-                        auto position_A = generator.generate_position();
-                        auto orientations_A = generator.generate_orientations(n_orientations);
-                        // Filter poses
-                        auto filtered_poses_A = generator.filter_poses(position_A, orientations_A, number_to_keep, initial_q);
-                        std::cout << "A poses filtered\n";
-                        std::cout << "A size = " << filtered_poses_A.size() << "\n";
-                        // Select random candidate from filtered poses for point A
-                        std::cout << "Selecting A...\n";
-                        auto pose_A = generator.select_random_candidate(filtered_poses_A);
-                        std::cout << "A selected\n";
-                        std::cout << "A q size = " << pose_A.q.size() << "\n";
-                        std::cout << "A manipulability = " << pose_A.manipulability << "\n";
-                        std::cout << "A position = " << pose_A.pose.position.transpose() << "\n";
-
-
-                        // --------------- B ----------------
-                        auto position_B = generator.generate_position_within_distance(position_A, path_length, tolerance);
-                        auto orientations_B = generator.generate_orientations_within_distance(n_orientations, pose_A.pose.orientation, angle_distance, angle_tolerance);
-                        auto filtered_poses_B = generator.filter_poses(position_B, orientations_B, number_to_keep, pose_A.q);
-                        std::cout << "B poses filtered\n";
-                        std::cout << "B size = " << filtered_poses_B.size() << "\n";
-                        std::cout << "Selecting B...\n";
-                        auto pose_B = generator.select_random_candidate(filtered_poses_B);
-                        std::cout << "B selected\n";
-                        std::cout << "B q size = " << pose_B.q.size() << "\n";
-                        std::cout << "B manipulability = " << pose_B.manipulability << "\n";
-                        std::cout << "B position = " << pose_B.pose.position.transpose() << "\n";
-
-
-                        // --------------- C ----------------
-                        auto position_C = generator.generate_position_within_distance(position_B, path_length, tolerance);
-                        auto orientations_C = generator.generate_orientations_within_distance(n_orientations, pose_B.pose.orientation, angle_distance, angle_tolerance);
-                        auto filtered_poses_C = generator.filter_poses(position_C, orientations_C, number_to_keep, pose_B.q);
-                        std::cout << "C poses filtered\n";
-                        std::cout << "C size = " << filtered_poses_C.size() << "\n";
-                        std::cout << "Selecting C...\n";
-                        auto pose_C = generator.select_random_candidate(filtered_poses_C);
-                        std::cout << "C selected\n";
-                        std::cout << "C q size = " << pose_C.q.size() << "\n";
-                        std::cout << "C manipulability = " << pose_C.manipulability << "\n";
-                        std::cout << "C position = " << pose_C.pose.position.transpose() << "\n";
-
-
-                        // --------------- D ----------------
-                        auto position_D = generator.generate_position_within_distance(position_C, path_length, tolerance);
-                        auto orientations_D = generator.generate_orientations_within_distance(n_orientations, pose_C.pose.orientation, angle_distance, angle_tolerance);
-                        auto filtered_poses_D = generator.filter_poses(position_D, orientations_D, number_to_keep, pose_C.q);
-                        std::cout << "D poses filtered\n";
-                        std::cout << "D size = " << filtered_poses_D.size() << "\n";
-                        std::cout << "Selecting D...\n";
-                        auto pose_D = generator.select_random_candidate(filtered_poses_D);
-                        std::cout << "D selected\n";
-                        std::cout << "D q size = " << pose_D.q.size() << "\n";
-                        std::cout << "D manipulability = " << pose_D.manipulability << "\n";
-                        std::cout << "D position = " << pose_D.pose.position.transpose() << "\n";
-
-
-                        // Store poses for easier handling
-                        std::vector<CartesianPose> poses = {pose_A.pose, pose_B.pose, pose_C.pose, pose_D.pose};
-                        std::cout << poses;
-
+                        std::vector<CartesianPose> poses = generator.generate_poses(initial_q, number_of_points);
+                        
                         const double hold_time = 5.0;
                         const double move_time = 10.0;
 
@@ -341,7 +272,7 @@ int main(int argc, char **argv) {
                     }
                         break;                        
                     
-
+                    /*
                     case 2:{
                         const float omega = M_PI / 10.0;
 
@@ -350,9 +281,9 @@ int main(int argc, char **argv) {
                         const double tolerance = 0.05; // Tolerance for the distance between points
 
                         auto position_A = generator.generate_position();
-                        auto position_B = generator.generate_position_within_distance(position_A, path_length, tolerance);
-                        auto position_C = generator.generate_position_within_distance(position_B, path_length, tolerance);
-                        auto position_D = generator.generate_position_within_distance(position_C, path_length, tolerance);
+                        auto position_B = generator.generate_position_with_constraints(position_A, path_length, tolerance);
+                        auto position_C = generator.generate_position_with_constraints(position_B, path_length, tolerance);
+                        auto position_D = generator.generate_position_with_constraints(position_C, path_length, tolerance);
 
                         while(rclcpp::ok()) {
                             double t = rclcpp::Clock().now().seconds() - t0;
@@ -449,7 +380,7 @@ int main(int argc, char **argv) {
                         }
                         break;
                     }
-
+                    */
                     default:{
                         pose_request->x = 0.5;
                         pose_request->y = 0.0;
