@@ -258,6 +258,7 @@ int main(int argc, char **argv) {
 
                         // Store poses for easier handling
                         std::vector<CartesianPose> poses = {pose_A.pose, pose_B.pose, pose_C.pose, pose_D.pose};
+                        std::cout << poses;
 
                         const double hold_time = 5.0;
                         const double move_time = 10.0;
@@ -321,7 +322,7 @@ int main(int argc, char **argv) {
                                 pose_request->yaw
                             };
                             desired_pose_pub_->publish(desired_pose_msg);
-
+                            /*
                             if(rclcpp::spin_until_future_complete(node, pose_result) ==  rclcpp::FutureReturnCode::SUCCESS){
                                 RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Trajectory update sent successfully.");
                                 std::cout << "Current Pose: x = " << pose_request->x << ", y = " << pose_request->y << ", z = " << pose_request->z
@@ -330,6 +331,7 @@ int main(int argc, char **argv) {
                             } else {
                                 RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Failed to call service setPose during trajectory.");
                             }
+                            */
                         }                      
                                                         
                         // --- Publish trajectory type ---
@@ -447,7 +449,7 @@ int main(int argc, char **argv) {
                         }
                         break;
                     }
-                    
+
                     default:{
                         pose_request->x = 0.5;
                         pose_request->y = 0.0;

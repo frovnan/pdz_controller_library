@@ -16,7 +16,7 @@
 
 TrajectorySelector::TrajectorySelector()
     : generator_(std::random_device{}()),
-      uniform_(-0.5, 0.5)
+      uniform_(0.0, 1.0)
 {
     const std::string urdf_path =
         ament_index_cpp::get_package_share_directory("pdz_controller_library")
@@ -34,25 +34,29 @@ TrajectorySelector::TrajectorySelector()
     std::cout << "EE frame ID = " << ee_frame_id_ << "\n";
 }
 
-Eigen::Vector3d TrajectorySelector::generate_position()
-{
+Eigen::Vector3d TrajectorySelector::generate_position() {
+    // Uniform distribution of x,y,z within allowed volume
+    const double r_min = 0.40; // Minimum distance to origin
+    const double r_max = 0.75; // Maximum distance to origin
+    const double z_min = 0.15; // Minimum height to prevent collision with table
+
+    double u1 = uniform_(generator_);
+    double u2 = uniform_(generator_);
+    double u3 = uniform_(generator_);
+
+    double r = std::cbrt(r_min*r_min*r_min + u1 * (r_max*r_max*r_max - r_min*r_min*r_min)); // Radius
+
+    double phi = 2.0 * M_PI * u2; // Azimuthal angle
+
+    double cos_theta = z_min / r + u3 * (1.0 - z_min / r);
+
+    double sin_theta = std::sqrt(1.0 - cos_theta * cos_theta);
+
     Eigen::Vector3d position;
-    
-    do {
-        // Generate a random position...
-        position[0] = uniform_(generator_);
-        position[1] = uniform_(generator_);
-        position[2] = uniform_(generator_);
-    } while (
-        // ...within a sphere of radius 0.75m, and...
-        position.norm() > 0.75 ||
 
-        // ...beyond a sphere of radius 0.30m, and...
-        position.norm() < 0.40 ||
-
-        // ...ensure the z-coordinate is above 0.15m to avoid collisions with the table
-        position[2] < 0.15 
-    );
+    position.x() = r * sin_theta * std::cos(phi);
+    position.y() = r * sin_theta * std::sin(phi);
+    position.z() = r * cos_theta;
 
     return position;
 }
