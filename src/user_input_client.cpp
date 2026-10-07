@@ -181,29 +181,16 @@ int main(int argc, char **argv) {
                 switch (trajectory_selection){
                     case 1:{
                         TrajectorySelector generator;
+
+                        // --------- Parameters -----------
                         const double path_length = 0.5; // Length of the path in meters
                         const double tolerance = 0.05; // Tolerance for the distance between points
 
                         const double angle_distance = 45 * M_PI / 180.0; // Angle distance in radians
                         const double angle_tolerance = 7.5 * M_PI / 180.0; // Angle tolerance in radians
 
-                        // Generate positions and orientations for points A, B, C, D
-                        auto position_A = generator.generate_position();
-                        auto position_B = generator.generate_position_within_distance(position_A, path_length, tolerance);
-                        auto position_C = generator.generate_position_within_distance(position_B, path_length, tolerance);
-                        auto position_D = generator.generate_position_within_distance(position_C, path_length, tolerance);
-
-                        std::cout << "Positions A, B, C, D generated" << std::endl;
-
                         const int n_orientations = 200; // Number of orientations to generate for each point
 
-                        auto orientations_A = generator.generate_orientations(n_orientations);
-                        auto orientations_B = generator.generate_orientations(n_orientations);
-                        auto orientations_C = generator.generate_orientations(n_orientations);
-                        auto orientations_D = generator.generate_orientations(n_orientations);
-
-                        std::cout << "Orientations A, B, C, D generated" << std::endl;
-                        
                         // Initial joint configuration for the first pose (can be set to a default or previous known configuration,
                         // in this case, starting position of cartesian_impedance_controller start position in gazebo launch file)
                         Eigen::VectorXd initial_q(9);
@@ -211,140 +198,147 @@ int main(int argc, char **argv) {
 
                         const int number_to_keep = 15; // Number of candidates to keep after filtering based on manipulability
 
+                        // -------------- A ----------------
+                        auto position_A = generator.generate_position();
+                        auto orientations_A = generator.generate_orientations(n_orientations);
                         // Filter poses
                         auto filtered_poses_A = generator.filter_poses(position_A, orientations_A, number_to_keep, initial_q);
                         std::cout << "A poses filtered\n";
                         std::cout << "A size = " << filtered_poses_A.size() << "\n";
-                        // Valid indices of A are all indices since we are selecting the first pose without any constraints
-                        std::cout << "Creating A indices...\n";
-                        std::vector<int> valid_indices_A(filtered_poses_A.size());
-                        std::iota(valid_indices_A.begin(), valid_indices_A.end(), 0);
-                        std::cout << "A indices created\n";
-                        for (int i : valid_indices_A)
-                        {
-                            std::cout << "  " << i;
-                        }
-                        std::cout << "\n";
                         // Select random candidate from filtered poses for point A
                         std::cout << "Selecting A...\n";
-                        auto pose_A_quat = generator.select_random_candidate(filtered_poses_A, valid_indices_A);
+                        auto pose_A = generator.select_random_candidate(filtered_poses_A);
                         std::cout << "A selected\n";
-                        std::cout << "A q size = " << pose_A_quat.q.size() << "\n";
-                        std::cout << "A manipulability = " << pose_A_quat.manipulability << "\n";
-                        std::cout << "A position = " << pose_A_quat.pose.position.transpose() << "\n";
-                        // Convert quaternion of pose_A_quat to Euler angles for publishing
-                        std::cout << "Converting A...\n";
-                        auto pose_A_euler = generator.quaternion_to_euler(pose_A_quat.pose);
-                        std::cout << "A converted" << std::endl;
+                        std::cout << "A q size = " << pose_A.q.size() << "\n";
+                        std::cout << "A manipulability = " << pose_A.manipulability << "\n";
+                        std::cout << "A position = " << pose_A.pose.position.transpose() << "\n";
 
-                        auto filtered_poses_B = generator.filter_poses(position_B, orientations_B, number_to_keep, pose_A_quat.q);
+
+                        // --------------- B ----------------
+                        auto position_B = generator.generate_position_within_distance(position_A, path_length, tolerance);
+                        auto orientations_B = generator.generate_orientations_within_distance(n_orientations, pose_A.pose.orientation, angle_distance, angle_tolerance);
+                        auto filtered_poses_B = generator.filter_poses(position_B, orientations_B, number_to_keep, pose_A.q);
                         std::cout << "B poses filtered\n";
                         std::cout << "B size = " << filtered_poses_B.size() << "\n";
-                        // Select candidate for point B from filtered poses based on angle constraint with respect to pose_A
                         std::cout << "Selecting B...\n";
-                        auto pose_B_quat = generator.select_candidate_with_angle_constraint(filtered_poses_B, pose_A_quat.pose.orientation, angle_distance, angle_tolerance);
+                        auto pose_B = generator.select_random_candidate(filtered_poses_B);
                         std::cout << "B selected\n";
-                        std::cout << "B q size = " << pose_B_quat.q.size() << "\n";
-                        std::cout << "B manipulability = " << pose_B_quat.manipulability << "\n";
-                        std::cout << "B position = " << pose_B_quat.pose.position.transpose() << "\n";
-                        std::cout << "Converting B...\n";
-                        auto pose_B_euler = generator.quaternion_to_euler(pose_B_quat.pose);
-                        std::cout << "B converted" << std::endl;
+                        std::cout << "B q size = " << pose_B.q.size() << "\n";
+                        std::cout << "B manipulability = " << pose_B.manipulability << "\n";
+                        std::cout << "B position = " << pose_B.pose.position.transpose() << "\n";
 
-                        // analogously for points C and D
-                        auto filtered_poses_C = generator.filter_poses(position_C, orientations_C, number_to_keep, pose_B_quat.q);
+
+                        // --------------- C ----------------
+                        auto position_C = generator.generate_position_within_distance(position_B, path_length, tolerance);
+                        auto orientations_C = generator.generate_orientations_within_distance(n_orientations, pose_B.pose.orientation, angle_distance, angle_tolerance);
+                        auto filtered_poses_C = generator.filter_poses(position_C, orientations_C, number_to_keep, pose_B.q);
                         std::cout << "C poses filtered\n";
                         std::cout << "C size = " << filtered_poses_C.size() << "\n";
                         std::cout << "Selecting C...\n";
-                        auto pose_C_quat = generator.select_candidate_with_angle_constraint(filtered_poses_C, pose_B_quat.pose.orientation, angle_distance, angle_tolerance);
+                        auto pose_C = generator.select_random_candidate(filtered_poses_C);
                         std::cout << "C selected\n";
-                        std::cout << "C q size = " << pose_C_quat.q.size() << "\n";
-                        std::cout << "C manipulability = " << pose_C_quat.manipulability << "\n";
-                        std::cout << "C position = " << pose_C_quat.pose.position.transpose() << "\n";
-                        std::cout << "Converting C...\n";
-                        auto pose_C_euler = generator.quaternion_to_euler(pose_C_quat.pose);
-                        std::cout << "C converted" << std::endl;
+                        std::cout << "C q size = " << pose_C.q.size() << "\n";
+                        std::cout << "C manipulability = " << pose_C.manipulability << "\n";
+                        std::cout << "C position = " << pose_C.pose.position.transpose() << "\n";
 
-                        auto filtered_poses_D = generator.filter_poses(position_D, orientations_D, number_to_keep, pose_C_quat.q);
+
+                        // --------------- D ----------------
+                        auto position_D = generator.generate_position_within_distance(position_C, path_length, tolerance);
+                        auto orientations_D = generator.generate_orientations_within_distance(n_orientations, pose_C.pose.orientation, angle_distance, angle_tolerance);
+                        auto filtered_poses_D = generator.filter_poses(position_D, orientations_D, number_to_keep, pose_C.q);
                         std::cout << "D poses filtered\n";
                         std::cout << "D size = " << filtered_poses_D.size() << "\n";
-                        // Select candidate for point B from filtered poses based on angle constraint with respect to pose_A
                         std::cout << "Selecting D...\n";
-                        auto pose_D_quat = generator.select_candidate_with_angle_constraint(filtered_poses_D, pose_C_quat.pose.orientation, angle_distance, angle_tolerance);
+                        auto pose_D = generator.select_random_candidate(filtered_poses_D);
                         std::cout << "D selected\n";
-                        std::cout << "D q size = " << pose_D_quat.q.size() << "\n";
-                        std::cout << "D manipulability = " << pose_D_quat.manipulability << "\n";
-                        std::cout << "D position = " << pose_D_quat.pose.position.transpose() << "\n";
-                        std::cout << "Converting D...\n";
-                        auto pose_D_euler = generator.quaternion_to_euler(pose_D_quat.pose);
-                        std::cout << "D converted" << std::endl;
+                        std::cout << "D q size = " << pose_D.q.size() << "\n";
+                        std::cout << "D manipulability = " << pose_D.manipulability << "\n";
+                        std::cout << "D position = " << pose_D.pose.position.transpose() << "\n";
 
 
-                        while(rclcpp::ok()) {
+                        // Store poses for easier handling
+                        std::vector<CartesianPose> poses = {pose_A.pose, pose_B.pose, pose_C.pose, pose_D.pose};
+
+                        const double hold_time = 5.0;
+                        const double move_time = 10.0;
+
+                        while (rclcpp::ok()) {
                             double t = rclcpp::Clock().now().seconds() - t0;
-                            double T = 10.0; // Total time for the trajectory
 
-                            if (t <= 10.0) { // Move to position A
-                                pose_request->x = pose_A_euler[0];
-                                pose_request->y = pose_A_euler[1];
-                                pose_request->z = pose_A_euler[2];
-                                pose_request->roll = pose_A_euler[3];
-                                pose_request->pitch = pose_A_euler[4];
-                                pose_request->yaw = pose_A_euler[5];
+                            // TODO: include time slot for moving to pose A
+
+                            // Determine which segment we are currently in
+                            double segment_duration = hold_time + move_time;
+
+                            size_t n = static_cast<int>(t / segment_duration);
+
+                            // Stop once the final pose has been reached
+                            if (n >= poses.size() - 1) {break;}
+
+                            // Time elapsed within the current segment
+                            double t_segment = std::fmod(t, segment_duration);
+
+                            const CartesianPose& start = poses[n];
+                            const CartesianPose& end = poses[n + 1];
+
+                            CartesianPose interpolated_pose;
+
+                            if (t_segment < hold_time) {
+                                // Hold the starting pose
+                                interpolated_pose = start;
+                            } else {
+                                // Move from start to end
+                                double s = std::clamp((t_segment - hold_time) / move_time, 0.0, 1.0);
+
+                                interpolated_pose = {
+                                    start.position + s * (end.position - start.position),
+                                    start.orientation.slerp(s, end.orientation)
+                                };
                             }
 
-                            else {
-                                double s = std::clamp((t - 10.0) / T, 0.0, 1.0); // Normalized time for interpolation between A and B
+                            // Convert to Euler angles only for publishing
+                            std::array<double, 6> pose_euler = generator.quaternion_to_euler(interpolated_pose);
 
-                                CartesianPose interpolated_pose_quat = {
-                                    position_A + s * (position_B - position_A),
-                                    pose_A_quat.pose.orientation.slerp(s, pose_B_quat.pose.orientation)
-                                };
+                            // TODO: Discretize into ~10 cm step inputs for the controller
 
-                                std::array<double, 6> interpolated_pose_euler = generator.quaternion_to_euler(interpolated_pose_quat);
-                                
-                                // Linear interpolation between position A and B over time T, 
-                                // Spherical linear interpolation (slerp) between orientations A and B over time T
-                                //
-                                // TODO: - Discretize into ~10cm step inputs for the controller, currently continuous interpolation
-                                pose_request->x = interpolated_pose_euler[0];
-                                pose_request->y = interpolated_pose_euler[1];
-                                pose_request->z = interpolated_pose_euler[2];
-                                pose_request->roll = interpolated_pose_euler[3];
-                                pose_request->pitch = interpolated_pose_euler[4];
-                                pose_request->yaw = interpolated_pose_euler[5];
+                            pose_request->x = pose_euler[0];
+                            pose_request->y = pose_euler[1];
+                            pose_request->z = pose_euler[2];
+                            pose_request->roll = pose_euler[3];
+                            pose_request->pitch = pose_euler[4];
+                            pose_request->yaw = pose_euler[5];
 
-                                auto pose_result = pose_client->async_send_request(pose_request);
+                            auto pose_result = pose_client->async_send_request(pose_request);
 
-                                // --- Publish current desired pose for visualization ---
-                                std_msgs::msg::Float64MultiArray desired_pose_msg;
-                                desired_pose_msg.data = {   
-                                    pose_request->x,
-                                    pose_request->y,
-                                    pose_request->z,
-                                    pose_request->roll,
-                                    pose_request->pitch,
-                                    pose_request->yaw
-                                };
-                                desired_pose_pub_->publish(desired_pose_msg);
+                            // --- Publish current desired pose for logging ---
+                            std_msgs::msg::Float64MultiArray desired_pose_msg;
+                            desired_pose_msg.data = {   
+                                pose_request->x,
+                                pose_request->y,
+                                pose_request->z,
+                                pose_request->roll,
+                                pose_request->pitch,
+                                pose_request->yaw
+                            };
+                            desired_pose_pub_->publish(desired_pose_msg);
 
-                                // --- Publish trajectory type ---
-                                std_msgs::msg::UInt8 trajectory_msg;
-                                trajectory_msg.data = trajectory_selection;
-                                trajectory_pub_->publish(trajectory_msg);
-
-                                if(rclcpp::spin_until_future_complete(node, pose_result) ==  rclcpp::FutureReturnCode::SUCCESS){
-                                    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Trajectory update sent successfully.");
-                                    std::cout << "Current Pose: x = " << pose_request->x << ", y = " << pose_request->y << ", z = " << pose_request->z
-                                            << ", roll = " << pose_request->roll << ", pitch = " << pose_request->pitch
-                                            << ", yaw = " << pose_request->yaw << std::endl;
-                                } else {
-                                    RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Failed to call service setPose during trajectory.");
-                                }
+                            if(rclcpp::spin_until_future_complete(node, pose_result) ==  rclcpp::FutureReturnCode::SUCCESS){
+                                RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Trajectory update sent successfully.");
+                                std::cout << "Current Pose: x = " << pose_request->x << ", y = " << pose_request->y << ", z = " << pose_request->z
+                                        << ", roll = " << pose_request->roll << ", pitch = " << pose_request->pitch
+                                        << ", yaw = " << pose_request->yaw << std::endl;
+                            } else {
+                                RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Failed to call service setPose during trajectory.");
                             }
-                        }
-                        break;                        
+                        }                      
+                                                        
+                        // --- Publish trajectory type ---
+                        std_msgs::msg::UInt8 trajectory_msg;
+                        trajectory_msg.data = trajectory_selection;
+                        trajectory_pub_->publish(trajectory_msg);
                     }
+                        break;                        
+                    
 
                     case 2:{
                         const float omega = M_PI / 10.0;
@@ -453,6 +447,7 @@ int main(int argc, char **argv) {
                         }
                         break;
                     }
+                    
                     default:{
                         pose_request->x = 0.5;
                         pose_request->y = 0.0;

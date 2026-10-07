@@ -34,21 +34,19 @@ class TrajectorySelector {
 
         std::vector<Eigen::Quaterniond> generate_orientations(int number_of_orientations);
 
+        std::vector<Eigen::Quaterniond> generate_orientations_within_distance(
+            int number_of_orientations,
+            const Eigen::Quaterniond& previous_orientation,
+            const double angle_distance,
+            const double angle_tolerance);
+
         std::vector<Candidate> filter_poses(
             const Eigen::Vector3d& position,
             const std::vector<Eigen::Quaterniond>& orientations,
             int number_to_keep,
             const Eigen::VectorXd& initial_q);
 
-        Candidate select_random_candidate(
-            const std::vector<Candidate>& candidates, 
-            const std::vector<int>& valid_indices);
-
-        Candidate select_candidate_with_angle_constraint(
-            const std::vector<Candidate>& candidates,
-            const Eigen::Quaterniond& previous_orientation,
-            const double angle_distance, 
-            const double angle_tolerance);
+        Candidate select_random_candidate(const std::vector<Candidate>& candidates);
 
         std::array<double, 6> quaternion_to_euler(const CartesianPose& pose);
 
@@ -57,8 +55,6 @@ class TrajectorySelector {
         double manipulability(const Eigen::Matrix<double, 6, 7>& J);
 
         bool solve_ik(const CartesianPose& desired_pose, Eigen::VectorXd& q);
-        
-        double geodesic_distance(const Eigen::Quaterniond& q1, const Eigen::Quaterniond& q2);
 
         pinocchio::Model model_;
         pinocchio::Data data_;

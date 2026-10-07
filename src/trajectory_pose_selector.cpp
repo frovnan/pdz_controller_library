@@ -34,13 +34,6 @@ TrajectorySelector::TrajectorySelector()
     std::cout << "EE frame ID = " << ee_frame_id_ << "\n";
 }
 
-double TrajectorySelector::geodesic_distance(const Eigen::Quaterniond& q1, const Eigen::Quaterniond& q2)
-{
-    // Geodesic distance between two quaternions
-    Eigen::Quaterniond quat_product = q1.inverse() * q2;
-    return 2.0 * std::acos(std::abs(quat_product.w()));
-}
-
 Eigen::Vector3d TrajectorySelector::generate_position()
 {
     Eigen::Vector3d position;
@@ -54,11 +47,11 @@ Eigen::Vector3d TrajectorySelector::generate_position()
         // ...within a sphere of radius 0.75m, and...
         position.norm() > 0.75 ||
 
-        // ...beyond a sphere of radius 0.25m, and...
-        position.norm() < 0.25 ||
+        // ...beyond a sphere of radius 0.30m, and...
+        position.norm() < 0.40 ||
 
-        // ...ensure the z-coordinate is above 0.1m to avoid collisions with the table
-        position[2] < 0.1 
+        // ...ensure the z-coordinate is above 0.15m to avoid collisions with the table
+        position[2] < 0.15 
     );
 
     return position;
@@ -89,21 +82,57 @@ std::vector<Eigen::Quaterniond> TrajectorySelector::generate_orientations(int nu
 
     orientations.reserve(number_of_orientations);
 
-    std::mt19937 generator(42);
-
     std::uniform_real_distribution<double> uniform_(0.0, 1.0);
 
     for (int i = 0; i < number_of_orientations; ++i)
     {
-        double u1 = uniform_(generator);
-        double u2 = uniform_(generator);
-        double u3 = uniform_(generator);
+        double u1 = uniform_(generator_);
+        double u2 = uniform_(generator_);
+        double u3 = uniform_(generator_);
 
         Eigen::Quaterniond q(
             std::sqrt(1.0 - u1) * std::sin(2.0 * M_PI * u2),
             std::sqrt(1.0 - u1) * std::cos(2.0 * M_PI * u2),
             std::sqrt(u1) * std::sin(2.0 * M_PI * u3),
             std::sqrt(u1) * std::cos(2.0 * M_PI * u3));
+
+        orientations.push_back(q);
+    }
+
+    return orientations;
+}
+
+std::vector<Eigen::Quaterniond> TrajectorySelector::generate_orientations_within_distance(
+    int number_of_orientations,
+    const Eigen::Quaterniond& previous_orientation,
+    const double angle_distance,
+    const double angle_tolerance)
+{
+    std::vector<Eigen::Quaterniond> orientations;
+    orientations.reserve(number_of_orientations);
+
+    std::normal_distribution<double> normal(0.0, 1.0);
+
+    std::uniform_real_distribution<double> angle_distribution(angle_distance - angle_tolerance, angle_distance + angle_tolerance);
+
+    for (int i = 0; i < number_of_orientations; ++i)
+    {
+        // Random unit rotation axis
+        Eigen::Vector3d axis(
+            normal(generator_),
+            normal(generator_),
+            normal(generator_));
+        axis.normalize();
+
+        // Random angle within desired range
+        double angle = angle_distribution(generator_);
+
+        // Construct relative rotation
+        Eigen::AngleAxisd relative_rotation(angle, axis);
+
+        // Apply to previous orientation
+        Eigen::Quaterniond q = previous_orientation * Eigen::Quaterniond(relative_rotation);
+        q.normalize();
 
         orientations.push_back(q);
     }
@@ -279,39 +308,11 @@ std::vector<Candidate> TrajectorySelector::filter_poses(
 
 
 
-Candidate TrajectorySelector::select_random_candidate(const std::vector<Candidate>& candidates, const std::vector<int>& valid_indices)
+Candidate TrajectorySelector::select_random_candidate(const std::vector<Candidate>& candidates)
 {
-    std::uniform_int_distribution<int> distribution(0, static_cast<int>(valid_indices.size()) - 1);
+    std::uniform_int_distribution<int> distribution(0, static_cast<int>(candidates.size()) - 1);
 
-    int index = valid_indices[distribution(generator_)];
-
-    return candidates[index];
-}
-
-Candidate TrajectorySelector::select_candidate_with_angle_constraint( 
-    const std::vector<Candidate>& candidates,
-    const Eigen::Quaterniond& previous_orientation,
-    const double angle_distance, 
-    const double angle_tolerance)
-{
-    // Pick indices of candidates that satisfy the angle constraint
-    std::vector<int> valid_indices;
-
-    std::cout << "valid indices: ";
-    for (unsigned int i = 0; i < candidates.size(); ++i){
-        double angle_diff = geodesic_distance(previous_orientation, candidates[i].pose.orientation);
-
-        if (std::abs(angle_diff - angle_distance) <= angle_tolerance){
-            std::cout << i << ", ";
-            valid_indices.push_back(i);
-        }
-    }
-    std::cout << "\n";
-
-    // Pick random candidate from valid candidates
-    Candidate candidate = select_random_candidate(candidates, valid_indices);
-
-    return candidate;
+    return candidates[distribution(generator_)];
 }
 
 
