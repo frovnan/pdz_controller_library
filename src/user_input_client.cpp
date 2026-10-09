@@ -182,14 +182,32 @@ int main(int argc, char **argv) {
                     case 1:{
                         TrajectorySelector generator;
 
-                        // Initial joint configuration for the first pose (can be set to a default or previous known configuration,
+                        // --- Publish trajectory type ---
+                        std_msgs::msg::UInt8 trajectory_msg;
+                        trajectory_msg.data = trajectory_selection;
+                        trajectory_pub_->publish(trajectory_msg);
+
+                        // Initial pose data for the first pose (can be set to a default or previous known configuration,
                         // in this case, starting position of cartesian_impedance_controller start position in gazebo launch file
+                        CartesianPose initial_EE_pose = {
+                            Eigen::Vector3d {0.3, 0.0, 0.5},
+                            Eigen::Quaterniond {0.0, 1.0, 0.0, 0.0}
+                        };
+
                         Eigen::VectorXd initial_q(9);
                         initial_q << -0.016473, -0.82876, 0.00329376, -2.60491, 0.00381832, 1.76963, 0.676789, 0, 0;
 
-                        int number_of_points = 4;
+                        double initial_manipulability = 0.0632485;
 
-                        std::vector<CartesianPose> poses = generator.generate_poses(initial_q, number_of_points);
+                        Candidate initial_pose_data = {
+                            initial_EE_pose,
+                            initial_q,
+                            initial_manipulability
+                        };
+
+                        int number_of_points = 4; // number of randomly generated poses (excluding initial pose)
+
+                        std::vector<CartesianPose> poses = generator.generate_poses(initial_pose_data, number_of_points);
                         
                         const double hold_time = 5.0;
                         const double move_time = 10.0;
@@ -263,12 +281,7 @@ int main(int argc, char **argv) {
                                 RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Failed to call service setPose during trajectory.");
                             }
                             */
-                        }                      
-                                                        
-                        // --- Publish trajectory type ---
-                        std_msgs::msg::UInt8 trajectory_msg;
-                        trajectory_msg.data = trajectory_selection;
-                        trajectory_pub_->publish(trajectory_msg);
+                        }                                                                          
                     }
                         break;                        
                     
@@ -334,8 +347,13 @@ int main(int argc, char **argv) {
                         }
                         break;
                     }
-
+                    */
                     case 3:{
+                        // --- Publish trajectory type ---
+                        std_msgs::msg::UInt8 trajectory_msg;
+                        trajectory_msg.data = trajectory_selection;
+                        trajectory_pub_->publish(trajectory_msg);
+                        
                         const float amplitude_xy = 0.2; // Amplitude in xy
                         const float amplitude_z = 0.1; // Amplitude in z
                         const float omega = M_PI / 6.0; // Frequency of the trajectory
@@ -364,10 +382,7 @@ int main(int argc, char **argv) {
                             };
                             desired_pose_pub_->publish(desired_pose_msg);
 
-                            // --- Publish trajectory type ---
-                            std_msgs::msg::UInt8 trajectory_msg;
-                            trajectory_msg.data = trajectory_selection;
-                            trajectory_pub_->publish(trajectory_msg);
+
 
                             if(rclcpp::spin_until_future_complete(node, pose_result) ==  rclcpp::FutureReturnCode::SUCCESS){
                                 RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Trajectory update sent successfully.");
@@ -380,7 +395,7 @@ int main(int argc, char **argv) {
                         }
                         break;
                     }
-                    */
+                    
                     default:{
                         pose_request->x = 0.5;
                         pose_request->y = 0.0;

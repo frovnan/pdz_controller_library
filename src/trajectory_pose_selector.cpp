@@ -360,26 +360,26 @@ std::array<double, 6> TrajectorySelector::quaternion_to_euler(const CartesianPos
     return {pose.position[0], pose.position[1], pose.position[2], euler_angles[0], euler_angles[1], euler_angles[2]};
 }
 
-std::vector<CartesianPose> TrajectorySelector::generate_poses(Eigen::VectorXd& initial_q, int number_of_points){
+std::vector<CartesianPose> TrajectorySelector::generate_poses(const Candidate& initial_pose_data, int number_of_points){
     // --------- Parameters -----------
-    const double path_length = 0.5; // Length of the path in meters
+    const double path_length = 0.6; // Length of the path in meters
     const double tolerance = 0.05; // Tolerance for the distance between points
 
-    const double angle_distance = 45 * M_PI / 180.0; // Angle distance in radians
+    const double angle_distance = 60 * M_PI / 180.0; // Angle distance in radians
     const double angle_tolerance = 7.5 * M_PI / 180.0; // Angle tolerance in radians
 
     const int n_orientations = 200; // Number of orientations to generate for each point
     const int number_to_keep = 15; // Number of candidates to keep after filtering based on manipulability
 
     std::vector<Candidate> candidates;
-    std::vector<CartesianPose> poses;
+    std::vector<CartesianPose> poses = {initial_pose_data.pose};
 
     for (int i = 0; i < number_of_points; ++i) {
         std::vector<Candidate> filtered_poses;
         if (i == 0) {
             auto position = generate_position();
             auto orientations = generate_orientations(n_orientations);
-            filtered_poses = filter_poses(position, orientations, number_to_keep, initial_q);
+            filtered_poses = filter_poses(position, orientations, number_to_keep, initial_pose_data.q);
 
         } else {
             auto position = generate_position_with_constraints(candidates[i-1].pose.position, path_length, tolerance);

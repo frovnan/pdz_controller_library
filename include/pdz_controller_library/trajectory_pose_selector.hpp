@@ -27,7 +27,7 @@ class TrajectorySelector {
         explicit TrajectorySelector();
 
         std::vector<CartesianPose> generate_poses(
-            Eigen::VectorXd& initial_q, int number_of_points);
+            const Candidate& initial_pose_data, int number_of_points);
 
         std::array<double, 6> quaternion_to_euler(
             const CartesianPose& pose);
