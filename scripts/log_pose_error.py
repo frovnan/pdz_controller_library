@@ -30,7 +30,7 @@ class PoseErrorLogger(Node):
             "trajectory_topic", "/user_input_client/trajectory"
         ).value
 
-        self.duration = 60.0
+        self.duration = 45.0
         self.start_ros_time = None
         self.start_wall_time = None
         self.saved = False

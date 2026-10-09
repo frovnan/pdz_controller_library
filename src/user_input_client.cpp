@@ -169,7 +169,7 @@ int main(int argc, char **argv) {
 
 
             case 2:{
-                std::cout << "Enter new goal position: \n [1] --> Benchmark trajectory #1 (Linear motion from A --> B) \n [2] --> Benchmark trajectory #2 (Sinusoidal motion between A & B) \n [3] --> Benchmark trajectory #3 (Circle in xy-plane with z-oscillation)" << std::endl;
+                std::cout << "Enter new goal position: \n [1] --> Continuous linear motion from A --> B \n [2] --> Discrete linear motion from A --> B \n [3] --> Frequency attenuation around home pose \n [4] --> Circle in xy-plane with z-oscillation" << std::endl;
 
                 std::cin >> trajectory_selection;
 
@@ -179,7 +179,7 @@ int main(int argc, char **argv) {
                 auto trajectory_pub_ = node->create_publisher<std_msgs::msg::UInt8>("~/trajectory", 10);
                 
                 switch (trajectory_selection){
-                    case 1:{
+                    case 1:{ // Continuous linear trajectories connecting n random points in task space
                         TrajectorySelector generator;
 
                         // --- Publish trajectory type ---
@@ -212,14 +212,14 @@ int main(int argc, char **argv) {
                         const double hold_time = 5.0;
                         const double move_time = 5.0;
 
+                        const double segment_duration = hold_time + move_time;
+
                         rclcpp::Rate rate(1000.0); // 1 kHz
 
                         while (rclcpp::ok()) {
                             double t = rclcpp::Clock().now().seconds() - t0;
 
                             // Determine which segment we are currently in
-                            double segment_duration = hold_time + move_time;
-
                             size_t n = static_cast<int>(t / segment_duration);
 
                             // Stop once the final pose has been reached
@@ -242,7 +242,7 @@ int main(int argc, char **argv) {
 
                                 interpolated_pose = {
                                     start.position + s * (end.position - start.position),
-                                    start.orientation.slerp(s, end.orientation)
+                                    start.orientation.slerp(s, end.orientation).normalized()
                                 };
                             }
 
@@ -287,18 +287,142 @@ int main(int argc, char **argv) {
                     }
                         break;                        
                     
+                    case 2:{ // Discrete linear trajectories connecting n random points in task space
+                        TrajectorySelector generator;
+
+                        // --- Publish trajectory type ---
+                        std_msgs::msg::UInt8 trajectory_msg;
+                        trajectory_msg.data = trajectory_selection;
+                        trajectory_pub_->publish(trajectory_msg);
+
+                        // Initial pose data for the first pose (can be set to a default or previous known configuration,
+                        // in this case, starting position of cartesian_impedance_controller start position in gazebo launch file
+                        CartesianPose initial_EE_pose = {
+                            Eigen::Vector3d {0.3, 0.0, 0.5},
+                            Eigen::Quaterniond {0.0, 1.0, 0.0, 0.0}
+                        };
+
+                        Eigen::VectorXd initial_q(9);
+                        initial_q << -0.016473, -0.82876, 0.00329376, -2.60491, 0.00381832, 1.76963, 0.676789, 0, 0;
+
+                        double initial_manipulability = 0.0632485;
+
+                        Candidate initial_pose_data = {
+                            initial_EE_pose,
+                            initial_q,
+                            initial_manipulability
+                        };
+
+                        int number_of_points = 4; // number of randomly generated poses (excluding initial pose)
+
+                        std::vector<CartesianPose> poses = generator.generate_poses(initial_pose_data, number_of_points);
+
+                        const int num_slices = 4; // Number of step inputs to get from A to B
+
+                        std::vector<CartesianPose> discrete_poses;
+                        discrete_poses.push_back(poses.front());
+
+                        for (size_t i = 0; i < poses.size() - 1; ++i){
+                            const CartesianPose& start = poses[i];
+                            const CartesianPose& end = poses[i + 1];
+
+                            for (int j = 1; j <= num_slices; ++j){
+                                double s = static_cast<double>(j) / num_slices;
+
+                                CartesianPose interpolated_pose = {
+                                    start.position + s * (end.position - start.position),
+                                    start.orientation.slerp(s, end.orientation).normalized()
+                                };
+
+                                discrete_poses.push_back(interpolated_pose);
+                            }
+                        }
+
+                        const double hold_time = 5.0;
+                        const double move_time = 5.0;
+
+                        const double step_time = move_time / num_slices;
+                        const double segment_duration = hold_time + move_time;
+
+                        rclcpp::Rate rate(1000.0); // 1 kHz
+
+                        while (rclcpp::ok()) {
+                            double t = rclcpp::Clock().now().seconds() - t0;
+
+                            // Determine which original segment we are in
+                            size_t segment = static_cast<size_t>(t / segment_duration);
+
+                            // Stop after all original segments have been completed
+                            if (segment >= poses.size() - 1) {
+                                break;
+                            }
+
+                            // Time elapsed within the current segment
+                            double t_segment = std::fmod(t, segment_duration);
+
+                            CartesianPose reference_pose;
+
+                            if (t_segment < hold_time) {
+                                // Hold at the starting pose of this segment
+                                reference_pose = poses[segment];
+                            } else {
+                                // Determine which discrete step we are holding
+                                double t_move = t_segment - hold_time;
+
+                                size_t step = static_cast<size_t>(t_move / step_time);
+                                step = std::min(step, static_cast<size_t>(num_slices - 1));
+
+                                // Each original segment contributes num_slices poses
+                                size_t pose_index = segment * num_slices + step + 1;
+
+                                reference_pose = discrete_poses[pose_index];
+                            }
+
+                            // Convert to Euler angles only for publishing
+                            std::array<double, 6> pose_euler = generator.quaternion_to_euler(reference_pose);
+
+                            pose_request->x = pose_euler[0];
+                            pose_request->y = pose_euler[1];
+                            pose_request->z = pose_euler[2];
+                            pose_request->roll = pose_euler[3];
+                            pose_request->pitch = pose_euler[4];
+                            pose_request->yaw = pose_euler[5];
+
+                            auto pose_result = pose_client->async_send_request(pose_request);
+
+                            // --- Publish current desired pose for logging ---
+                            std_msgs::msg::Float64MultiArray desired_pose_msg;
+                            desired_pose_msg.data = {   
+                                pose_request->x,
+                                pose_request->y,
+                                pose_request->z,
+                                pose_request->roll,
+                                pose_request->pitch,
+                                pose_request->yaw
+                            };
+                            desired_pose_pub_->publish(desired_pose_msg);
+                            /*
+                            if(rclcpp::spin_until_future_complete(node, pose_result) ==  rclcpp::FutureReturnCode::SUCCESS){
+                                RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Trajectory update sent successfully.");
+                                std::cout << "Current Pose: x = " << pose_request->x << ", y = " << pose_request->y << ", z = " << pose_request->z
+                                        << ", roll = " << pose_request->roll << ", pitch = " << pose_request->pitch
+                                        << ", yaw = " << pose_request->yaw << std::endl;
+                            } else {
+                                RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Failed to call service setPose during trajectory.");
+                            }
+                            */
+
+                            rate.sleep();
+                        }                                                                          
+                    }
+                        break;
                     /*
-                    case 2:{
+                    case 3:{ // Oscillations around starting pose for bode plot generation
                         const float omega = M_PI / 10.0;
 
                         TrajectorySelector generator;
                         const double path_length = 0.7; // Length of the path in meters
                         const double tolerance = 0.05; // Tolerance for the distance between points
-
-                        auto position_A = generator.generate_position();
-                        auto position_B = generator.generate_position_with_constraints(position_A, path_length, tolerance);
-                        auto position_C = generator.generate_position_with_constraints(position_B, path_length, tolerance);
-                        auto position_D = generator.generate_position_with_constraints(position_C, path_length, tolerance);
 
                         while(rclcpp::ok()) {
                             double t = rclcpp::Clock().now().seconds() - t0;
@@ -350,7 +474,7 @@ int main(int argc, char **argv) {
                         break;
                     }
                     */
-                    case 3:{
+                    case 4:{
                         // --- Publish trajectory type ---
                         std_msgs::msg::UInt8 trajectory_msg;
                         trajectory_msg.data = trajectory_selection;

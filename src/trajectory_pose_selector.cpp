@@ -132,7 +132,9 @@ std::vector<Eigen::Quaterniond> TrajectorySelector::generate_orientations(int nu
             std::sqrt(1.0 - u1) * std::cos(2.0 * M_PI * u2),
             std::sqrt(u1) * std::sin(2.0 * M_PI * u3),
             std::sqrt(u1) * std::cos(2.0 * M_PI * u3));
-
+        
+        q.normalize();
+        
         orientations.push_back(q);
     }
 
@@ -389,6 +391,9 @@ std::vector<CartesianPose> TrajectorySelector::generate_poses(const Candidate& i
         auto pose = select_random_candidate(filtered_poses);
         candidates.push_back(pose);
         poses.push_back(pose.pose);
+
+        std::cout << "position: " << pose.pose.position.transpose() << std::endl;
+        std::cout << "orientation: " << pose.pose.orientation << std::endl;
     }
     return poses;
 }
