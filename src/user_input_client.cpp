@@ -212,6 +212,8 @@ int main(int argc, char **argv) {
                         const double hold_time = 5.0;
                         const double move_time = 10.0;
 
+                        rclcpp::Rate rate(1000.0); // 1 kHz
+
                         while (rclcpp::ok()) {
                             double t = rclcpp::Clock().now().seconds() - t0;
 
@@ -281,6 +283,8 @@ int main(int argc, char **argv) {
                                 RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Failed to call service setPose during trajectory.");
                             }
                             */
+                           
+                            rate.sleep();
                         }                                                                          
                     }
                         break;                        
@@ -353,10 +357,12 @@ int main(int argc, char **argv) {
                         std_msgs::msg::UInt8 trajectory_msg;
                         trajectory_msg.data = trajectory_selection;
                         trajectory_pub_->publish(trajectory_msg);
-                        
+
                         const float amplitude_xy = 0.2; // Amplitude in xy
                         const float amplitude_z = 0.1; // Amplitude in z
                         const float omega = M_PI / 6.0; // Frequency of the trajectory
+
+                        rclcpp::Rate rate(1000.0); // 1 kHz
 
                         while(rclcpp::ok()) {
                             double t = rclcpp::Clock().now().seconds() - t0;
@@ -392,6 +398,8 @@ int main(int argc, char **argv) {
                             } else {
                                 RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Failed to call service setPose during trajectory.");
                             }
+
+                            rate.sleep();
                         }
                         break;
                     }

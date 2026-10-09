@@ -1,4 +1,3 @@
-```python
 #!/usr/bin/env python3
 
 import argparse
@@ -40,7 +39,7 @@ def main():
     controller_dir = RESULTS_DIR / args.controller
 
     if args.timestamp:
-        prefix = f"{args.controller}_{args.timestamp}"
+        prefix = f"{args.controller}_{args.trajectory}_{args.timestamp}"
         real_csv = controller_dir / f"{prefix}_real.csv"
         desired_csv = controller_dir / f"{prefix}_desired.csv"
     else:
@@ -106,7 +105,7 @@ def main():
     axes[7].plot(
         real["time_s"],
         real["geodesic_error"],
-        label="Geodesic orientation error",
+        label="Orientation error",
     )
     axes[7].set_ylabel("Orientation error [rad]")
     axes[7].set_xlabel("Time [s]")
