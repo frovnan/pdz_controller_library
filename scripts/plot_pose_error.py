@@ -79,7 +79,7 @@ def main():
         ("rz", "rz", "rz [rad]"),
     ]
 
-    fig, axes = plt.subplots(8, 1, figsize=(12, 20), sharex=True)
+    fig, axes = plt.subplots(8, 1, figsize=(10, 14), sharex=True)
 
     for ax, (column, label, ylabel) in zip(axes[:6], pose_plots):
         ax.plot(real["time_s"], real[column], label=f"{label} measured")
