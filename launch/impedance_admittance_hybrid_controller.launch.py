@@ -97,4 +97,13 @@ def generate_launch_description():
             arguments=['impedance_admittance_hybrid_controller'],
             output='screen',
         ),
+        Node(
+            package='pdz_controller_library',
+            executable='log_pose_error.py',
+            name='log_pose_error',
+            output='screen',
+            parameters=[{
+                "controller_name": "impedance_admittance_hybrid_controller",
+            }],
+        )
     ])

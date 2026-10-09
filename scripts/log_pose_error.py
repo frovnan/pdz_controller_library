@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 
 import csv
-import re
-import subprocess
 import time
 from datetime import datetime
 from pathlib import Path
@@ -12,39 +10,16 @@ from rclpy.node import Node
 from std_msgs.msg import Float64MultiArray, UInt8
 
 
-result = subprocess.check_output(
-    ["ros2", "control", "list_controllers"],
-    text=True,
-)
-
-# Remove ANSI colour escape sequences.
-result = re.sub(r"\x1b\[[0-9;]*m", "", result)
-
-controller_name = None
-
-for line in result.splitlines():
-    parts = line.split()
-    if len(parts) < 2:
-        continue
-
-    name = parts[0]
-    state = parts[-1]
-
-    if state == "active" and name != "joint_state_broadcaster":
-        controller_name = name
-        break
-
-if controller_name is None:
-    raise RuntimeError("No active controller found.")
-
-
 class PoseErrorLogger(Node):
 
     def __init__(self):
         super().__init__("pose_error_logger")
 
+        self.declare_parameter("controller_name")
+        self.controller_name = (self.get_parameter("controller_name").value)
+
         real_topic = self.declare_parameter(
-            "topic", f"/{controller_name}/real_pose"
+            "topic", f"/{self.controller_name}/real_pose"
         ).value
 
         desired_topic = self.declare_parameter(
@@ -161,12 +136,12 @@ class PoseErrorLogger(Node):
             / "src"
             / "pdz_controller_library"
             / "results"
-            / f"{controller_name}"
+            / self.controller_name
         )
         results_dir.mkdir(parents=True, exist_ok=True)
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        prefix = f"{controller_name}_{self.trajectory_type}_{timestamp}"
+        prefix = f"{self.controller_name}_{self.trajectory_type}_{timestamp}"
 
         real_fields = [
             "time_s", "x", "y", "z", "rx", "ry", "rz",

@@ -210,14 +210,12 @@ int main(int argc, char **argv) {
                         std::vector<CartesianPose> poses = generator.generate_poses(initial_pose_data, number_of_points);
                         
                         const double hold_time = 5.0;
-                        const double move_time = 10.0;
+                        const double move_time = 5.0;
 
                         rclcpp::Rate rate(1000.0); // 1 kHz
 
                         while (rclcpp::ok()) {
                             double t = rclcpp::Clock().now().seconds() - t0;
-
-                            // TODO: include time slot for moving to pose A
 
                             // Determine which segment we are currently in
                             double segment_duration = hold_time + move_time;
@@ -283,7 +281,7 @@ int main(int argc, char **argv) {
                                 RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Failed to call service setPose during trajectory.");
                             }
                             */
-                           
+
                             rate.sleep();
                         }                                                                          
                     }

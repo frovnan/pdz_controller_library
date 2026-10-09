@@ -187,5 +187,8 @@ def generate_launch_description():
             executable='log_pose_error.py',
             name='log_pose_error',
             output='screen',
+            parameters=[{
+                "controller_name": "riemannian_motion_policy",
+            }],
         )
     ])
