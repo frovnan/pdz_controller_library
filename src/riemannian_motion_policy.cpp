@@ -977,6 +977,7 @@ controller_interface::return_type RiemannianMotionPolicy::update(const rclcpp::T
 
   double position_error_norm = error.head(3).norm();
   double geodesic_error = 2.0 * std::acos(std::abs(error_quaternion.w()));
+  double manipulability = sqrt((jacobian.topLeftCorner(6,7) * jacobian.topLeftCorner(6,7).transpose()).determinant());
 
   // --- Publish real pose for visualization ---
   Eigen::Vector3d euler = transform.rotation().eulerAngles(0, 1, 2);
@@ -989,7 +990,8 @@ controller_interface::return_type RiemannianMotionPolicy::update(const rclcpp::T
     euler[1],
     euler[2],
     position_error_norm,
-    geodesic_error
+    geodesic_error,
+    manipulability
   };
   real_pose_pub_->publish(real_pose_msg);
 

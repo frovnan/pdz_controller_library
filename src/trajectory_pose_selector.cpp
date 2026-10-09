@@ -364,7 +364,7 @@ std::array<double, 6> TrajectorySelector::quaternion_to_euler(const CartesianPos
 
 std::vector<CartesianPose> TrajectorySelector::generate_poses(const Candidate& initial_pose_data, int number_of_points){
     // --------- Parameters -----------
-    const double path_length = 0.6; // Length of the path in meters
+    const double path_length = 0.7; // Length of the path in meters
     const double tolerance = 0.05; // Tolerance for the distance between points
 
     const double angle_distance = 60 * M_PI / 180.0; // Angle distance in radians

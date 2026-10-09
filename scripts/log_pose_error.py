@@ -83,7 +83,7 @@ class PoseErrorLogger(Node):
         values = list(message.data)
 
         # Expected format:
-        # x, y, z, rx, ry, rz, position_error_norm, geodesic_error
+        # x, y, z, rx, ry, rz, position_error_norm, geodesic_error, manipulability
         self.real_rows.append({
             "time_s": self.relative_ros_time(),
             "x": values[0] if len(values) > 0 else "",
@@ -94,6 +94,7 @@ class PoseErrorLogger(Node):
             "rz": values[5] if len(values) > 5 else "",
             "position_error_norm": values[6] if len(values) > 6 else "",
             "geodesic_error": values[7] if len(values) > 7 else "",
+            "manipulability": values[8] if len(values) > 8 else "",
         })
 
     def desired_callback(self, message):
@@ -145,7 +146,7 @@ class PoseErrorLogger(Node):
 
         real_fields = [
             "time_s", "x", "y", "z", "rx", "ry", "rz",
-            "position_error_norm", "geodesic_error",
+            "position_error_norm", "geodesic_error", "manipulability"
         ]
         desired_fields = [
             "time_s", "x", "y", "z", "rx", "ry", "rz",

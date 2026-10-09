@@ -23,7 +23,7 @@ def main():
     )
     parser.add_argument(
         "trajectory",
-        choices=["1", "2", "3"],
+        choices=["1", "2", "3", "4"],
         help="Trajectory type",
     )
     parser.add_argument(
@@ -79,7 +79,7 @@ def main():
         ("rz", "rz", "rz [rad]"),
     ]
 
-    fig, axes = plt.subplots(8, 1, figsize=(10, 14), sharex=True)
+    fig, axes = plt.subplots(9, 1, figsize=(10, 14), sharex=True)
 
     for ax, (column, label, ylabel) in zip(axes[:6], pose_plots):
         ax.plot(real["time_s"], real[column], label=f"{label} measured")
@@ -111,6 +111,16 @@ def main():
     axes[7].set_xlabel("Time [s]")
     axes[7].legend(loc="upper right")
     axes[7].grid(True, alpha=0.3)
+
+    axes[8].plot(
+        real["time_s"],
+        real["manipulability"],
+        label="Manipulability",
+    )
+    axes[8].set_ylabel("Manipulability")
+    axes[8].set_xlabel("Time [s]")
+    axes[8].legend(loc="upper right")
+    axes[8].grid(True, alpha=0.3)
 
     fig.suptitle(real_csv.stem.replace("_real", ""), fontsize=14)
     fig.tight_layout(rect=[0, 0, 1, 0.98])
