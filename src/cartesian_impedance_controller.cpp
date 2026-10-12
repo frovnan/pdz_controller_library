@@ -153,8 +153,6 @@ CallbackReturn CartesianImpedanceController::on_init() {
   input_thread.detach();
   real_pose_pub_ = get_node()->create_publisher<std_msgs::msg::Float64MultiArray>(
       "~/real_pose", rclcpp::QoS(10));
-  pose_error_pub_ = get_node()->create_publisher<std_msgs::msg::Float64MultiArray>(
-      "~/pose_error", rclcpp::QoS(10));
   RCLCPP_INFO(get_node()->get_logger(), "on_init completed successfully.");
   return CallbackReturn::SUCCESS;
 }
@@ -356,11 +354,6 @@ controller_interface::return_type CartesianImpedanceController::update(const rcl
   };
   real_pose_pub_->publish(real_pose_msg);
 
-  // --- Publish pose error for visualization ---
-  std_msgs::msg::Float64MultiArray pose_error_msg;
-  pose_error_msg.data.assign(error.data(), error.data() + error.size());
-  pose_error_pub_->publish(pose_error_msg);
-
   double damping = 1e-6;
   Lambda = (jacobian.topLeftCorner(6,7) * M.topLeftCorner(7,7).inverse() * jacobian.topLeftCorner(6,7).transpose() + damping * IDENTITY).inverse();
 
@@ -391,7 +384,7 @@ controller_interface::return_type CartesianImpedanceController::update(const rcl
     RCLCPP_ERROR(rclcpp::get_logger("cartesian_impedance_controller"), "tau_impedance contains NaN!");
     tau_impedance.setZero();
   }
-  tau_d = tau_impedance + tau_nullspace + coriolis.head(7); // + gravity.head(7); //add nullspace and coriolis components to desired torque
+  tau_d = tau_impedance + /*tau_nullspace +*/ coriolis.head(7); // + gravity.head(7); //add nullspace and coriolis components to desired torque
   tau_d << saturateTorqueRate(tau_d, tau_J_d_M);  // Saturate torque rate to avoid discontinuities
   tau_J_d_M = tau_d;
 

@@ -33,6 +33,7 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include "rclcpp/subscription.hpp"
+#include <std_msgs/msg/float64_multi_array.hpp>
 
 #include <Eigen/Dense>
 #include <Eigen/Eigen>
@@ -95,6 +96,8 @@ public:
     rclcpp::Service<messages_fr3::srv::SetPose>::SharedPtr pose_srv_;                                           // Service to control the pose (Position and orientation)
     rclcpp::Service<messages_fr3::srv::SetForce>::SharedPtr force_srv_;                                         // Service to control the exerted forces.
     rclcpp::Publisher<geometry_msgs::msg::Wrench>::SharedPtr wrench_publisher_;                                 // Can be used to publish any wrench.
+
+    rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr real_pose_pub_;
 
     //Functions
     // A quick explanation of each function can be found in cartesian_impedance_controller.cpp (or if you simply hover over the function)

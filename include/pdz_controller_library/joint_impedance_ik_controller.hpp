@@ -106,7 +106,6 @@ class JointImpedanceIkController : public controller_interface::ControllerInterf
 
   //publishers
   rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr real_pose_pub_;
-  rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr pose_error_pub_;
 
   /**
    * @brief Calculates the new pose based on the initial pose.

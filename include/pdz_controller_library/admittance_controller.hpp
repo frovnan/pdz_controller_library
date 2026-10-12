@@ -30,6 +30,7 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp/subscription.hpp>
+#include <std_msgs/msg/float64_multi_array.hpp>
 
 #include <Eigen/Dense>
 #include <Eigen/Eigen>
@@ -95,6 +96,8 @@ public:
     rclcpp::Subscription<franka_msgs::msg::FrankaRobotState>::SharedPtr franka_state_subscriber = nullptr;
     rclcpp::Subscription<geometry_msgs::msg::Pose>::SharedPtr desired_pose_sub;
     rclcpp::Service<messages_fr3::srv::SetPose>::SharedPtr pose_srv_;
+
+    rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr real_pose_pub_;
 
 
     //Functions
@@ -216,7 +219,7 @@ public:
     Eigen::Matrix<double, 6, 6> cartesian_stiffness_target_;                                 // impedance damping term
     Eigen::Matrix<double, 6, 6> cartesian_damping_target_;                                   // impedance damping term
     Eigen::Matrix<double, 6, 6> cartesian_inertia_target_;                                   // impedance damping term
-    Eigen::Vector3d position_d_target_ = {0.5, 0.0, 0.5};
+    Eigen::Vector3d position_d_target_ = {0.3, 0.0, 0.5};
     Eigen::Vector3d rotation_d_target_ = {M_PI, 0.0, 0.0};
     Eigen::Matrix<double, 6, 1> reference_pose;
 

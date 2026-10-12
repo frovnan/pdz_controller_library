@@ -132,8 +132,6 @@ CallbackReturn JointImpedanceIkController::on_init() {
   input_thread.detach();
   real_pose_pub_ = get_node()->create_publisher<std_msgs::msg::Float64MultiArray>(
       "~/real_pose", rclcpp::QoS(10));
-  pose_error_pub_ = get_node()->create_publisher<std_msgs::msg::Float64MultiArray>(
-      "~/pose_error", rclcpp::QoS(10));
   RCLCPP_INFO(get_node()->get_logger(), "on_init completed successfully.");
   return CallbackReturn::SUCCESS;
 }
@@ -358,13 +356,7 @@ controller_interface::return_type JointImpedanceIkController::update(
     geodesic_error,
     manipulability
   };
-  real_pose_pub_->publish(real_pose_msg);
-
-  // --- Publish pose error for visualization ---
-  std_msgs::msg::Float64MultiArray pose_error_msg;
-  pose_error_msg.data.assign(error.data(), error.data() + error.size());
-  pose_error_pub_->publish(pose_error_msg);
-  
+  real_pose_pub_->publish(real_pose_msg);  
 
   // --- Jacobian ---
   pinocchio::computeFrameJacobian(model_, data_, q_, end_effector_frame_id_, pinocchio::LOCAL, jacobian);

@@ -184,6 +184,8 @@ CallbackReturn AdmittanceController::on_init() {
    UserInputServer input_server_obj(&position_d_target_, &rotation_d_target_, &K, &D, &T);
    std::thread input_thread(&UserInputServer::main, input_server_obj, 0, nullptr);
    input_thread.detach();
+   real_pose_pub_ = get_node()->create_publisher<std_msgs::msg::Float64MultiArray>(
+      "~/real_pose", rclcpp::QoS(10));
    return CallbackReturn::SUCCESS;
 }
 
@@ -358,7 +360,8 @@ controller_interface::return_type AdmittanceController::update(const rclcpp::Tim
   pseudoInverse(jacobian.transpose(), jacobian_transpose_pinv);
   pseudoInverse(jacobian, jacobian_pinv); 
 
-  Lambda = (jacobian * M.inverse() * jacobian.transpose()).inverse();
+  double damping = 1e-6;
+  Lambda = (jacobian * M.inverse() * jacobian.transpose() + damping * IDENTITY).inverse();
   updateJointStates(); 
   Theta = Lambda;
   D = 2.05* K.cwiseSqrt() * Lambda.diagonal().cwiseSqrt().asDiagonal(); // Admittance control law to compute desired trajectory
@@ -423,6 +426,26 @@ controller_interface::return_type AdmittanceController::update(const rclcpp::Tim
   Eigen::Quaterniond error_quaternion(orientation.inverse() * x_d_orientation_quat);
   error.tail(3) << error_quaternion.x(), error_quaternion.y(), error_quaternion.z();
   error.tail(3) << -transform.rotation() * error.tail(3);
+
+  double position_error_norm = error.head(3).norm();
+  double geodesic_error = 2.0 * std::acos(std::abs(error_quaternion.w()));
+  double manipulability = sqrt((jacobian.topLeftCorner(6,7) * jacobian.topLeftCorner(6,7).transpose()).determinant());
+
+  // --- Publish real pose for visualization ---
+  Eigen::Vector3d euler = transform.rotation().eulerAngles(0, 1, 2);
+  std_msgs::msg::Float64MultiArray real_pose_msg;
+  real_pose_msg.data = {
+    position[0],
+    position[1],
+    position[2],
+    euler[0],
+    euler[1],
+    euler[2],
+    position_error_norm,
+    geodesic_error,
+    manipulability
+  };
+  real_pose_pub_->publish(real_pose_msg);
 
   
   // change the PID control depending on the control mode

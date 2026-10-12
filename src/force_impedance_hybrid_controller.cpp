@@ -270,7 +270,9 @@ CallbackReturn ForceImpedanceHybridController::on_init() {
    UserInputServer input_server_obj(&position_d_target_,& rotation_d_target_, /*&gripper_command,*/ & K,& D,& T);                // creates or starts the server aka calls constructor of the UserInputServer defined in user_input_server.hpp
    std::thread input_thread(&UserInputServer::main, input_server_obj, 0, nullptr);
    input_thread.detach();                                                                                 // disconnect thread so other thread mustn't wait for 
-   
+   real_pose_pub_ = get_node()->create_publisher<std_msgs::msg::Float64MultiArray>(
+      "~/real_pose", rclcpp::QoS(10));
+      
    //start the UserInputForceServer
    UserInputForceServer input_server_obj2(&F_contact_target, &frame);                
    std::thread input_thread2(&UserInputForceServer::main, input_server_obj2, 0, nullptr);
@@ -412,6 +414,26 @@ controller_interface::return_type ForceImpedanceHybridController::update(const r
   error.tail(3) << error_quaternion.x(), error_quaternion.y(), error_quaternion.z();
   error.tail(3) << -transform.rotation() * error.tail(3);                                                         // transforms the rotational error to base frame
   
+  double position_error_norm = error.head(3).norm();
+  double geodesic_error = 2.0 * std::acos(std::abs(error_quaternion.w()));
+  double manipulability = sqrt((jacobian.topLeftCorner(6,7) * jacobian.topLeftCorner(6,7).transpose()).determinant());
+
+  // --- Publish real pose for visualization ---
+  Eigen::Vector3d euler = transform.rotation().eulerAngles(0, 1, 2);
+  std_msgs::msg::Float64MultiArray real_pose_msg;
+  real_pose_msg.data = {
+    position[0],
+    position[1],
+    position[2],
+    euler[0],
+    euler[1],
+    euler[2],
+    position_error_norm,
+    geodesic_error,
+    manipulability
+  };
+  real_pose_pub_->publish(real_pose_msg);
+
     //calculates the integrator part of the impedance control. Currently not used.
   I_error += Sm * dt * integrator_weights.cwiseProduct(error);                                                    // Integrator of PI controller for the position/orientation
   for (int i = 0; i < 6; i++){

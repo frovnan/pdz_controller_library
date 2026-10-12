@@ -32,6 +32,7 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include "rclcpp/subscription.hpp"
+#include <std_msgs/msg/float64_multi_array.hpp>
 
 #include <Eigen/Dense>
 #include <Eigen/Eigen>
@@ -101,7 +102,7 @@ ImpedanceAdmittanceHybridController();
     rclcpp::Service<messages_fr3::srv::SetPose>::SharedPtr pose_srv_;
     rclcpp::Subscription<geometry_msgs::msg::Pose>::SharedPtr desired_pose_sub;
 
-
+    rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr real_pose_pub_;
 
 
     //Functions

@@ -3,8 +3,25 @@
 import argparse
 from pathlib import Path
 
+import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
+
+
+def calculate_error_metrics(position_error, orientation_error):
+    position_error = np.asarray(position_error, dtype=float)
+    orientation_error = np.asarray(orientation_error, dtype=float)
+
+    # Ignore invalid samples
+    position_error = position_error[np.isfinite(position_error)]
+    orientation_error = orientation_error[np.isfinite(orientation_error)]
+
+    return {
+        "position_rmse": np.sqrt(np.mean(position_error**2)),
+        "position_mae": np.mean(np.abs(position_error)),
+        "orientation_rmse": np.sqrt(np.mean(orientation_error**2)),
+        "orientation_mae": np.mean(np.abs(orientation_error))
+    }
 
 
 def main():
@@ -34,7 +51,7 @@ def main():
     args = parser.parse_args()
 
     # Example:
-    # ros2 run pdz_controller_library plot_pose_error.py --controller joint_impedance_ik_controller --trajectory 3 --timestamp 20261009_110617
+    # ros2 run pdz_controller_library plot_pose_error.py joint_impedance_ik_controller 3 20261009_110617
 
     controller_dir = RESULTS_DIR / args.controller
 
@@ -68,6 +85,12 @@ def main():
     # Load CSV data
     real = pd.read_csv(real_csv)
     desired = pd.read_csv(desired_csv)
+
+    metrics = calculate_error_metrics(
+        real["position_error_norm"],
+        real["geodesic_error"]
+    )
+
 
     # Pose components: CSV column, plot label, vertical axis label.
     pose_plots = [
@@ -123,7 +146,26 @@ def main():
     axes[8].grid(True, alpha=0.3)
 
     fig.suptitle(real_csv.stem.replace("_real", ""), fontsize=14)
-    fig.tight_layout(rect=[0, 0, 1, 0.98])
+    
+    # LaTeX-style metrics beneath the plots
+    metrics_text = (
+        rf"$\mathrm{{RMSE}}_p = {metrics['position_rmse'] * 1000:.2f}\,\mathrm{{mm}}"
+        rf"\qquad \mathrm{{MAE}}_p = {metrics['position_mae'] * 1000:.2f}\,\mathrm{{mm}}$"
+        "\n"
+        rf"$\mathrm{{RMSE}}_R = {np.degrees(metrics['orientation_rmse']):.2f}^\circ"
+        rf"\qquad \mathrm{{MAE}}_R = {np.degrees(metrics['orientation_mae']):.2f}^\circ$"
+    )
+
+    fig.text(
+        0.5, 0.005,
+        metrics_text,
+        ha="center",
+        va="bottom",
+        fontsize=11,
+    )
+
+    fig.tight_layout(rect=[0, 0.055, 1, 0.96])
+
 
     # Save next to the CSV files, then display the figure.
     output_path = real_csv.with_name(

@@ -340,12 +340,6 @@ std::vector<Candidate> TrajectorySelector::filter_poses(
     for (int i = 0; i < count; ++i)
     {
         result.push_back(candidates[i]);
-
-        std::cout
-            << "Candidate " << i
-            << " manipulability = "
-            << candidates[i].manipulability
-            << "\n";
     }
 
     return result;
@@ -373,7 +367,7 @@ std::vector<CartesianPose> TrajectorySelector::generate_poses(const Candidate& i
     const double path_length = 0.7; // Length of the path in meters
     const double tolerance = 0.05; // Tolerance for the distance between points
 
-    const double angle_distance = 60 * M_PI / 180.0; // Angle distance in radians
+    const double angle_distance = 45 * M_PI / 180.0; // Angle distance in radians
     const double angle_tolerance = 7.5 * M_PI / 180.0; // Angle tolerance in radians
 
     const int n_orientations = 200; // Number of orientations to generate for each point
