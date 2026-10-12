@@ -317,7 +317,7 @@ int main(int argc, char **argv) {
 
                         std::vector<CartesianPose> poses = generator.generate_poses(initial_pose_data, number_of_points);
 
-                        const int num_slices = 4; // Number of step inputs to get from A to B
+                        const int num_slices = 3; // Number of step inputs to get from A to B
 
                         std::vector<CartesianPose> discrete_poses;
                         discrete_poses.push_back(poses.front());
@@ -338,11 +338,11 @@ int main(int argc, char **argv) {
                             }
                         }
 
-                        const double hold_time = 5.0;
-                        const double move_time = 5.0;
+                        const double hold_time = 4.0; // Time to hold at each new point
+                        //const double move_time = 5.0;
 
-                        const double step_time = move_time / num_slices;
-                        const double segment_duration = hold_time + move_time;
+                        const double step_time = 4.0; //move_time / num_slices; // Time each step input between points is applied for
+                        const double segment_duration = hold_time + num_slices * step_time; //move_time;
 
                         rclcpp::Rate rate(1000.0); // 1 kHz
 

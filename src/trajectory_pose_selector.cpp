@@ -40,26 +40,32 @@ Eigen::Vector3d TrajectorySelector::generate_position()
     const double r_min = 0.40; // Minimum distance to origin
     const double r_max = 0.75; // Maximum distance to origin
     const double z_min = 0.15; // Minimum height to prevent collision with table
+    const double x_min = 0.1; // Minimum x to prevent collisions with wall
 
-    double u1 = uniform_(generator_);
-    double u2 = uniform_(generator_);
-    double u3 = uniform_(generator_);
+    while (true) {
+        double u1 = uniform_(generator_);
+        double u2 = uniform_(generator_);
+        double u3 = uniform_(generator_);
 
-    double r = std::cbrt(r_min*r_min*r_min + u1 * (r_max*r_max*r_max - r_min*r_min*r_min)); // Radius
+        double r = std::cbrt(r_min*r_min*r_min + u1 * (r_max*r_max*r_max - r_min*r_min*r_min)); // Radius
 
-    double phi = 2.0 * M_PI * u2; // Azimuthal angle
+        double phi = 2.0 * M_PI * u2; // Azimuthal angle
 
-    double cos_theta = z_min / r + u3 * (1.0 - z_min / r);
+        double cos_theta = z_min / r + u3 * (1.0 - z_min / r);
 
-    double sin_theta = std::sqrt(1.0 - cos_theta * cos_theta);
+        double sin_theta = std::sqrt(1.0 - cos_theta * cos_theta);
 
-    Eigen::Vector3d position;
+        Eigen::Vector3d position;
 
-    position.x() = r * sin_theta * std::cos(phi);
-    position.y() = r * sin_theta * std::sin(phi);
-    position.z() = r * cos_theta;
+        position.x() = r * sin_theta * std::cos(phi);
+        position.y() = r * sin_theta * std::sin(phi);
+        position.z() = r * cos_theta;
 
-    return position;
+        // Reject points on the wall-facing side
+        if (position.x() <= x_min) {continue;}
+
+        return position;
+    }
 }
 
 Eigen::Vector3d TrajectorySelector::generate_position_with_constraints(
