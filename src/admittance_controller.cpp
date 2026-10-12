@@ -480,45 +480,49 @@ controller_interface::return_type AdmittanceController::update(const rclcpp::Tim
   
   
   if (outcounter % 1000 / update_frequency == 0){
-    /** 
-    std::cout << "F_ext_robot [N]" << std::endl;
-    std::cout << O_F_ext_hat_K << std::endl;
-    std::cout << O_F_ext_hat_K_M << std::endl;
-    std::cout << Lambda*Theta.inverse() << std::endl;
-    std::cout << "tau_d" << std::endl;
-    std::cout << tau_d << std::endl;
-    std::cout << "--------" << std::endl;
-    std::cout << tau_nullspace << std::endl;
-    std::cout << "--------" << std::endl;
-    std::cout << "--------" << std::endl;
-    std::cout << coriolis << std::endl;
-    std::cout << "Inertia scaling [m]: " << std::endl;
-    std::cout << T << std::endl;
-    *///
-    //std::cout << "Lambda: " << Lambda << std::endl;
-    //std::cout << "External Force is: " << F_ext.transpose() <<  std::endl;
-    /* std::cout << "Kp multiplier is: " << Kp_multiplier <<  std::endl; */
-    /* std::cout << "Kp is: " << Kp_multiplier <<  std::endl; */
-    //std::cout << "Current orientation: " << orientation.coeffs().transpose() << std::endl;
-    std::cout << "Target orientation: " << orientation_d_target_.toRotationMatrix().eulerAngles(0, 1, 2).transpose() << std::endl; 
-    std::cout << "x_d rotation is: " << x_d_orientation_quat.toRotationMatrix().eulerAngles(0, 1, 2).transpose() <<  std::endl;
-    /*
-    //std::cout << "Error quaternion: " << error_quaternion.coeffs().transpose() << std::endl;
     
-    //std::cout << "postition error is: " << error.head(3).transpose() <<  std::endl;
-    std::cout << "Elapsed time is: " << elapsed_time <<  std::endl;
-    std::cout << "Desired Acceleration is: " << x_ddot_d.transpose() <<  std::endl;
+    //std::cout << "F_ext_robot [N]" << std::endl;
+    //std::cout << O_F_ext_hat_K << std::endl;
+    //std::cout << O_F_ext_hat_K_M << std::endl;
+    //std::cout << Lambda*Theta.inverse() << std::endl;
+    std::cout << "torques: " << tau_d.transpose() << std::endl;
+    //std::cout << "--------" << std::endl;
+    //std::cout << tau_nullspace << std::endl;
+    //std::cout << "--------" << std::endl;
+    //std::cout << "--------" << std::endl;
+    //std::cout << coriolis << std::endl;
+    //std::cout << "Inertia scaling [m]: " << std::endl;
+    //std::cout << T << std::endl;
+    
+    std::cout << "Lambda: " << std::endl;
+    std::cout << Lambda << std::endl;
+    std::cout << "jacobian: " << std::endl;
+    std::cout << jacobian << std::endl;
+    //std::cout << "External Force is: " << F_ext.transpose() <<  std::endl;
+    //std::cout << "Kp multiplier is: " << Kp_multiplier <<  std::endl;
+    //std::cout << "Kp is: " << Kp_multiplier <<  std::endl;
+    //std::cout << "Current orientation: " << orientation.coeffs().transpose() << std::endl;
+    //std::cout << "Target orientation: " << orientation_d_target_.toRotationMatrix().eulerAngles(0, 1, 2).transpose() << std::endl; 
+    //std::cout << "x_d rotation is: " << x_d_orientation_quat.toRotationMatrix().eulerAngles(0, 1, 2).transpose() <<  std::endl;
+    
+    //std::cout << "Error quaternion: " << error_quaternion.coeffs().transpose() << std::endl;
+    std::cout << "joint positions: " << q_.transpose() << std::endl;
+    std::cout << "position: " << position.transpose() << std::endl;
+    std::cout << "orientation: " << orientation << std::endl;
+    std::cout << "position error is: " << error.head(3).transpose() <<  std::endl;
+    //std::cout << "Elapsed time is: " << elapsed_time <<  std::endl;
+    //std::cout << "Desired Acceleration is: " << x_ddot_d.transpose() <<  std::endl;
     //std::cout << "Desired Velocity is: " << x_dot_d.transpose() <<  std::endl;
-    std::cout << "X desired is: " << x_d.transpose() <<  std::endl;
+    //std::cout << "X desired is: " << x_d.transpose() <<  std::endl;
     //std::cout << "position target is: " << position_d_target_.transpose() <<  std::endl;
     //std::cout << "position_d is: " << position_d_.transpose() <<  std::endl;
     //std::cout << "Inertia is : " << Lambda <<  std::endl;
     //std::cout << "--------------------------------------------------" <<  std::endl;
     //std::cout << "tau friction is " << tau_friction.transpose() << std::endl;
     //std::cout << "tau desired is " << tau_d.transpose() << std::endl;
-    std::cout << "Control mode is: " << control_mode <<  std::endl; */
+    //std::cout << "Control mode is: " << control_mode <<  std::endl; */
     //std::cout << "F admittance is: " << F_admittance.transpose() <<  std::endl;
-    //std::cout << "Orientation Error is: " << error.tail(3).transpose() <<  std::endl; */
+    //std::cout << "Orientation Error is: " << error.tail(3).transpose() <<  std::endl; 
   }
   outcounter++;
   update_stiffness_and_references();

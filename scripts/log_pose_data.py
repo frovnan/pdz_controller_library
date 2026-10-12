@@ -13,7 +13,7 @@ from std_msgs.msg import Float64MultiArray, UInt8
 class PoseErrorLogger(Node):
 
     def __init__(self):
-        super().__init__("pose_error_logger")
+        super().__init__("pose_data_logger")
 
         self.declare_parameter("controller_name")
         self.controller_name = (self.get_parameter("controller_name").value)

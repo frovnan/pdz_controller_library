@@ -752,7 +752,7 @@ controller_interface::return_type ImpedanceAdmittanceHybridController::update(co
   write_to_file("position_d_target_y_.txt", position_d_target_[1]);
   write_to_file("position_d_target_z_.txt", position_d_target_[2]); //
   write_to_file("error_norm.txt", error.head(3).norm());
-  */
+  
   write_to_file("position_x.txt", position[0]);
   write_to_file("position_y.txt", position[1]);
   write_to_file("position_z.txt", position[2]); //
@@ -762,7 +762,7 @@ controller_interface::return_type ImpedanceAdmittanceHybridController::update(co
   write_to_file("output_x.txt", F_output[0]);
   write_to_file("output_y.txt", F_output[1]);
   write_to_file("output_z.txt", F_output[2]);
-
+  */
 
     //F_impedance = - Kp * error_pd  - Kd * w;
     

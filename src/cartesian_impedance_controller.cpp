@@ -430,8 +430,8 @@ controller_interface::return_type CartesianImpedanceController::update(const rcl
     std::cout << "position: " << position.transpose() << std::endl;
     std::cout << "orientation: " << orientation << std::endl;
     std::cout << "error: " << error.transpose() << std::endl;
-    std::cout << "K gains: " << K.diagonal().transpose() << std::endl;
-    std::cout << "D gains: " << D.diagonal().transpose() << std::endl;
+    //std::cout << "K gains: " << K.diagonal().transpose() << std::endl;
+    //std::cout << "D gains: " << D.diagonal().transpose() << std::endl;
     std::cout << "-------------------------------------------------------------------------------------" << std::endl;
   }
   outcounter++;

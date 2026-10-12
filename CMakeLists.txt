@@ -97,8 +97,8 @@ target_link_libraries(user_input_client ${PROJECT_NAME})
 target_link_libraries(${PROJECT_NAME} pinocchio::pinocchio yaml-cpp)
 
 install(PROGRAMS
-        scripts/log_pose_error.py
-        scripts/plot_pose_error.py
+        scripts/log_pose_data.py
+        scripts/plot_pose_data.py
         DESTINATION lib/${PROJECT_NAME})
 
 target_compile_definitions(${PROJECT_NAME} PUBLIC

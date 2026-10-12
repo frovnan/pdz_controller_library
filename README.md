@@ -183,8 +183,16 @@ To launch a controller, execute the following command:
 ros2 launch pdz_controller_library <launch file name>
 ```
 
-To run any additional functionalities like e.g. the user_input_client, open a new terminal and enter the following:
+Parallel to the controller, the log_pose_data script is launched, which waits for a pose command. Start the user_input_client,
 
 ```bash
-ros2 run pdz_controller_library <node name>
+ros2 run pdz_controller_library user_input_client
 ```
+
+select 'Trajectory' and your desired trajectory. After a set amount of time, the logger saves two .csv datasets in the results folder - one with the measured robot pose data, and one with the commanded pose data, both labeled with the controller name, the trajectory, and a timestamp. Run the plot_pose_data script
+
+```bash
+ros2 run pdz_controller_library plot_pose_data <controller_name> <trajectory> <timestamp>
+```
+
+and a figure containing several plots should appear in the same folder as the .csv files.
