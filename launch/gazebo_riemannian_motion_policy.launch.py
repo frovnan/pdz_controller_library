@@ -184,8 +184,8 @@ def generate_launch_description():
         set_load,
         Node(
             package='pdz_controller_library',
-            executable='log_pose_error.py',
-            name='log_pose_error',
+            executable='log_pose_data.py',
+            name='log_pose_data',
             output='screen',
             parameters=[{
                 "controller_name": "riemannian_motion_policy",

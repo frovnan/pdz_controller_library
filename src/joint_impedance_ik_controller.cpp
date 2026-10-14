@@ -143,11 +143,11 @@ CallbackReturn JointImpedanceIkController::on_init() {
 CallbackReturn JointImpedanceIkController::on_configure(
     const rclcpp_lifecycle::State& /*previous_state*/) {
   RCLCPP_INFO(get_node()->get_logger(), "Starting on_configure...");
-  
+  /*
   if (!assign_parameters()) {
     return CallbackReturn::FAILURE;
   }
-
+  */
   RCLCPP_INFO(get_node()->get_logger(), "on_configure checkpoint #1");
 
   try{
@@ -475,54 +475,22 @@ Vector7d JointImpedanceIkController::compute_torque_command(
 }
 
 
-
+/*
 // ---------------------------------------------------------------------------
 // assign_parameters
 // ---------------------------------------------------------------------------
 bool JointImpedanceIkController::assign_parameters() {
-
-  RCLCPP_INFO(get_node()->get_logger(), "arm_id parameter retrieved successfully: %s", arm_id_.c_str());
-
-  RCLCPP_INFO(get_node()->get_logger(), "Retrieving and checking size of k_gains and d_gains...");
-
-  auto k_gains = get_node()->get_parameter("k_gains").as_double_array();
-  auto d_gains = get_node()->get_parameter("d_gains").as_double_array();
-  if (k_gains.empty()) {
-    RCLCPP_FATAL(get_node()->get_logger(), "k_gains parameter not set");
-    return false;
-  }
-
-  if (k_gains.size() != static_cast<uint>(num_joints_)) {
-    RCLCPP_FATAL(get_node()->get_logger(), "k_gains should be of size %d but is of size %ld",
-                 num_joints_, k_gains.size());
-    return false;
-  }
-
-  if (d_gains.empty()) {
-    RCLCPP_FATAL(get_node()->get_logger(), "d_gains parameter not set");
-    return false;
-  }
-
-  if (d_gains.size() != static_cast<uint>(num_joints_)) {
-    RCLCPP_FATAL(get_node()->get_logger(), "d_gains should be of size %d but is of size %ld",
-                 num_joints_, d_gains.size());
-    return false;
-  }
-
-  RCLCPP_INFO(get_node()->get_logger(), "k_gains and d_gains retrieved successfully, assigning to member variables...");
-
   k_gains_.resize(num_joints_);
   d_gains_.resize(num_joints_);
 
-  for (int i = 0; i < num_joints_; ++i) {
-    d_gains_(i) = d_gains.at(i);
-    k_gains_(i) = k_gains.at(i);
-  }
+  k_gains_ << 85.0, 135.0, 90.0, 90.0, 15.0, 8.0, 3.0;
+  d_gains_ << 14.0, 23.0, 18.0, 2.5, 1.8, 0.8;
 
   RCLCPP_INFO(get_node()->get_logger(), "Parameters assigned successfully.");
 
   return true;
 }
+  */
 
 
 

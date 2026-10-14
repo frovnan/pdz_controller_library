@@ -76,8 +76,8 @@ class JointImpedanceController : public controller_interface::ControllerInterfac
   Vector7d dq_filtered_;
   
   // gains
-  Vector7d k_gains_;
-  Vector7d d_gains_;
+  Vector7d k_gains_ = {85.0, 135.0, 90.0, 90.0, 15.0, 8.0, 3.0};
+  Vector7d d_gains_ {14.0, 23.0, 18.0, 18.0, 2.5, 1.8, 0.8};
 
   int counter_ = 0;
   double elapsed_time_{0.0};

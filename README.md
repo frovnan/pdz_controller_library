@@ -78,43 +78,11 @@ Further down, you will need to add these lines:
   joint_impedance_controller:
     ros__parameters:
       robot_type: "fr3"
-      k_gains:
-        - 85.0
-        - 135.0
-        - 90.0
-        - 90.0
-        - 15.0
-        - 8.0
-        - 3.0
-      d_gains:
-        - 14.0
-        - 23.0
-        - 18.0
-        - 18.0
-        - 2.5
-        - 1.8
-        - 0.8
 
 /**:
   joint_impedance_ik_controller:
     ros__parameters:
       robot_type: "fr3"
-      k_gains:
-        - 85.0
-        - 135.0
-        - 90.0
-        - 90.0
-        - 15.0
-        - 8.0
-        - 3.0
-      d_gains:
-        - 14.0
-        - 23.0
-        - 18.0
-        - 18.0
-        - 2.5
-        - 1.8
-        - 0.8
 
 /**:
   riemannian_motion_policy:
@@ -136,8 +104,6 @@ Further down, you will need to add these lines:
     ros__parameters:
       robot_type: "fr3"
 ```
-
-The numbers under the joint impedance controllers are the stiffness and damping gains for each joint. They can be changed freely if one so wishes.
 
 ### Step 3: Clone the Messages Package
 

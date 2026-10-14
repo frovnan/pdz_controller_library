@@ -121,30 +121,7 @@ CallbackReturn JointImpedanceController::on_configure(
   RCLCPP_INFO(get_node()->get_logger(), "Starting on_configure...");
   
   arm_id_ = get_node()->get_parameter("arm_id").as_string();
-  auto k_gains = get_node()->get_parameter("k_gains").as_double_array();
-  auto d_gains = get_node()->get_parameter("d_gains").as_double_array();
-  if (k_gains.empty()) {
-    RCLCPP_FATAL(get_node()->get_logger(), "k_gains parameter not set");
-    return CallbackReturn::FAILURE;
-  }
-  if (k_gains.size() != static_cast<uint>(num_joints)) {
-    RCLCPP_FATAL(get_node()->get_logger(), "k_gains should be of size %d but is of size %ld",
-                 num_joints, k_gains.size());
-    return CallbackReturn::FAILURE;
-  }
-  if (d_gains.empty()) {
-    RCLCPP_FATAL(get_node()->get_logger(), "d_gains parameter not set");
-    return CallbackReturn::FAILURE;
-  }
-  if (d_gains.size() != static_cast<uint>(num_joints)) {
-    RCLCPP_FATAL(get_node()->get_logger(), "d_gains should be of size %d but is of size %ld",
-                 num_joints, d_gains.size());
-    return CallbackReturn::FAILURE;
-  }
-  for (int i = 0; i < num_joints; ++i) {
-    d_gains_(i) = d_gains.at(i);
-    k_gains_(i) = k_gains.at(i);
-  }
+
   dq_filtered_.setZero();
 
   auto parameters_client =

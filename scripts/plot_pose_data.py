@@ -51,7 +51,7 @@ def main():
     args = parser.parse_args()
 
     # Example:
-    # ros2 run pdz_controller_library plot_pose_error.py joint_impedance_ik_controller 3 20261009_110617
+    # ros2 run pdz_controller_library plot_pose_data.py joint_impedance_ik_controller 3 20261009_110617
 
     controller_dir = RESULTS_DIR / args.controller
 

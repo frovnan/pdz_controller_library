@@ -130,7 +130,7 @@ class JointImpedanceIkController : public controller_interface::ControllerInterf
    *
    * @return true when parameters are present, false when parameters are not available
    */
-  bool assign_parameters();
+  //bool assign_parameters();
 
   int control_mode = 0; // 0 for normal, 1 for free float (all control_mode can be removed)
   
@@ -174,9 +174,9 @@ class JointImpedanceIkController : public controller_interface::ControllerInterf
   Eigen::VectorXd q_;
   Eigen::VectorXd dq_;
   Vector7d dq_filtered;
-  Eigen::VectorXd k_gains_;
-  Eigen::VectorXd d_gains_;
-
+  Vector7d k_gains_ = {85.0, 135.0, 90.0, 90.0, 15.0, 8.0, 3.0};
+  Vector7d d_gains_ {14.0, 23.0, 18.0, 18.0, 2.5, 1.8, 0.8};
+  
 // jacobian and nullspaces
   Eigen::MatrixXd jacobian; //Jacobian of the end-effector
   Eigen::MatrixXd jacobian_pinv; //pseudoinverse jacobian matrix

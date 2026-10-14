@@ -1011,6 +1011,8 @@ controller_interface::return_type RiemannianMotionPolicy::update(const rclcpp::T
   M.triangularView<Eigen::StrictlyLower>() = M.transpose().triangularView<Eigen::StrictlyLower>(); // Ensure M is symmetric
   Eigen::MatrixXd JM_pinv = M.ldlt().solve(jacobian.transpose());
   Lambda = (jacobian * JM_pinv).ldlt().solve(Eigen::MatrixXd::Identity(6, 6)); // More efficient and numerically stable way to compute Lambda
+  // correcting D to be critically damped
+  D_RMP = D_gain * K_RMP.cwiseMax(0.0).cwiseSqrt() * Lambda.cwiseMax(0.0).diagonal().cwiseSqrt().asDiagonal();
   x_dd_des = (-K_RMP * (error) - D_RMP* jacobian * dq_);
   A_attract = calculate_target_attraction(error, jacobian);
 
@@ -1164,7 +1166,7 @@ void RiemannianMotionPolicy::reset_to_home_callback(const std::shared_ptr<std_sr
                                                     std::shared_ptr<std_srvs::srv::Trigger::Response> response) {
   
   // Set home position - adjust these coordinates to your robot's safe home position
-  position_d_target_ << 0.3, 0.0, 0.6;  // x, y, z in meters
+  position_d_target_ << 0.3, 0.0, 0.5;  // x, y, z in meters
   
   // Set home orientation (upright)
   orientation_d_target_.coeffs() << 0.0, 0.0, 0.0, 1.0;  // x, y, z, w quaternion

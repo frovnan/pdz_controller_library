@@ -249,19 +249,19 @@ public:
     
     Eigen::Matrix<double, 7, 1> ddq_;
     Eigen::Matrix<double, 7, 1> tau_RMP;
-    Eigen::Matrix<double, 6, 6> K_RMP = (Eigen::MatrixXd(6,6) << 250,   0,   0,   0,   0,   0,
-                                                                0, 250,   0,   0,   0,   0,
-                                                                0,   0, 250,   0,   0,   0,  
-                                                                0,   0,   0, 20,   0,   0,
-                                                                0,   0,   0,   0, 20,   0,
-                                                                0,   0,   0,   0,   0,  10).finished();
+    Eigen::Matrix<double, 6, 6> K_RMP =  (Eigen::MatrixXd(6,6) << 250,   0,   0,   0,   0,   0,
+                                                                    0, 250,   0,   0,   0,   0,
+                                                                    0,   0, 250,   0,   0,   0,  
+                                                                    0,   0,   0,  20,   0,   0,
+                                                                    0,   0,   0,   0,  20,   0,
+                                                                    0,   0,   0,   0,   0,  10).finished();
 
     Eigen::Matrix<double, 6, 6> D_RMP =  (Eigen::MatrixXd(6,6) <<  30,   0,   0,   0,   0,   0,
-                                                                0,  30,   0,   0,   0,   0,
-                                                                0,   0,  30,   0,   0,   0,  
-                                                                0,   0,   0,   9,   0,   0,
-                                                                0,   0,   0,   0,   9,   0,
-                                                                0,   0,   0,   0,   0,   6).finished();
+                                                                    0,  30,   0,   0,   0,   0,
+                                                                    0,   0,  30,   0,   0,   0,  
+                                                                    0,   0,   0,   9,   0,   0,
+                                                                    0,   0,   0,   0,   9,   0,
+                                                                    0,   0,   0,   0,   0,   6).finished();
 
     double beta_orientation = 0;
     //RMP Obstacle Avoidance Parameters
@@ -475,6 +475,7 @@ public:
     Eigen::Matrix<double, 6, 1> error;                                                       // pose error (6d)
     double nullspace_stiffness_{0.001};
     double nullspace_stiffness_target_{0.001};
+    double D_gain = 2.05;
 
     //Logging
     int outcounter = 0;
