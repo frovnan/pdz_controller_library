@@ -371,6 +371,15 @@ controller_interface::return_type JointImpedanceIkController::update(
     jacobian_pinv.setZero(); // Set to zero or some safe value to prevent sending NaN torques to the robot
   }
 
+  M = pinocchio::crba(model_, data_, q_);
+  double damping = 1e-6;
+  Lambda = (jacobian.topLeftCorner(6,7) * M.topLeftCorner(7,7).inverse() * jacobian.topLeftCorner(6,7).transpose() + damping * IDENTITY).inverse();
+  // Find joint impedance gains equivalent to desired cartesian impedance gains
+  K_joint = jacobian.topLeftCorner(6,7).transpose() * K_cartesian_desired * jacobian.topLeftCorner(6,7);
+  // correct cartesian D to be critically damped
+  D_cartesian_desired = D_gain * K_cartesian_desired.cwiseMax(0.0).cwiseSqrt() * Lambda.cwiseMax(0.0).diagonal().cwiseSqrt().asDiagonal();
+  // Find joint impedance gains equivalent to desired cartesian impedance gains
+  D_joint = jacobian.topLeftCorner(6,7).transpose() * D_cartesian_desired * jacobian.topLeftCorner(6,7);
   Eigen::VectorXd dq_ik = jacobian_pinv * error;
 
   
@@ -410,6 +419,8 @@ controller_interface::return_type JointImpedanceIkController::update(
     //std::cout << "friction torque: " << tau_friction.transpose() << std::endl;
     std::cout << "coriolis compensation: " << (pinocchio::computeCoriolisMatrix(model_, data_, q_, dq_) * dq_).head(7).transpose() << std::endl;
     std::cout << "gravity compensation: " << (pinocchio::computeGeneralizedGravity(model_, data_, q_)).head(7).transpose() << std::endl;
+    std::cout << "jacobian: " << std::endl;
+    std::cout << jacobian.topLeftCorner(6,7) << std::endl;
     std::cout << "commanded torque: " << tau_d_calculated.transpose() << std::endl;
     std::cout << "current joint configuration: " << joint_positions_current_eigen.transpose() << std::endl;
     std::cout << "current joint velocities: " << joint_velocities_current_eigen.transpose() << std::endl;
@@ -424,8 +435,8 @@ controller_interface::return_type JointImpedanceIkController::update(
     //std::cout << "dq_ik: " << dq_ik.transpose() << std::endl;
     //std::cout << "jacobian: " << std::endl << jacobian_7 << std::endl;
     //std::cout << "jacobian pseudo-inverse: " << std::endl << jacobian_pinv << std::endl;
-    std::cout << "k gains: " << k_gains_.transpose() << std::endl;
-    std::cout << "d gains: " << d_gains_.transpose() << std::endl;
+    std::cout << "K gains: " << K_joint.diagonal().transpose() << std::endl;
+    std::cout << "D gains: " << D_joint.diagonal().transpose() << std::endl;
     std::cout << "-------------------------------------------------------------------------------------" << std::endl;
   }
   counter_++;
@@ -466,7 +477,7 @@ Vector7d JointImpedanceIkController::compute_torque_command(
 
   
   // --- impedance control law ---
-  Vector7d tau = k_gains_.cwiseProduct(q_error) - d_gains_.cwiseProduct(dq_filtered);
+  Vector7d tau = K_joint * q_error - D_joint * dq_filtered;
 
 
   // Add Coriolis and gravity compensation to the torque command 

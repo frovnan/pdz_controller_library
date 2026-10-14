@@ -135,12 +135,12 @@ public:
     Eigen::Matrix<double, 6, 6> Lambda = IDENTITY;                                           // operational space mass matrix
     Eigen::Matrix<double, 6, 6> Sm = IDENTITY;                                               // task space selection matrix for positions and rotation
     Eigen::Matrix<double, 6, 6> Sf = Eigen::MatrixXd::Zero(6, 6);                            // task space selection matrix for forces
-    Eigen::Matrix<double, 6, 6> K =  (Eigen::MatrixXd(6,6) << 2500,   0,   0,   0,   0,   0,
-                                                                0, 2500,   0,   0,   0,   0,
-                                                                0,   0, 2500,   0,   0,   0,  // impedance stiffness term
-                                                                0,   0,   0, 100,   0,   0,
-                                                                0,   0,   0,   0, 100,   0,
-                                                                0,   0,   0,   0,   0,  100).finished();
+    Eigen::Matrix<double, 6, 6> K = (Eigen::MatrixXd(6,6) << 1000,   0,   0,   0,   0,   0,
+                                                                0, 1000,  0,   0,   0,   0,
+                                                                0,   0, 1000,  0,   0,   0,  // impedance stiffness term
+                                                                0,   0,   0,  50,   0,   0,
+                                                                0,   0,   0,   0,  50,   0,
+                                                                0,   0,   0,   0,   0,  50).finished();
 
     Eigen::Matrix<double, 6, 6> D =  (Eigen::MatrixXd(6,6) <<  35,   0,   0,   0,   0,   0,
                                                                 0,  35,   0,   0,   0,   0,

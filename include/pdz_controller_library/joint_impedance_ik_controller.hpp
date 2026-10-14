@@ -136,6 +136,7 @@ class JointImpedanceIkController : public controller_interface::ControllerInterf
   
   
   //compliance
+  /*
   Eigen::Matrix<double, 6, 6> K_cartesian_desired =  (Eigen::MatrixXd(6,6) << 2000,   0,   0,   0,   0,   0,
                                                                               0, 2000,   0,   0,   0,   0,
                                                                               0,   0, 50,   0,   0,   0,  // impedance stiffness term
@@ -149,6 +150,23 @@ class JointImpedanceIkController : public controller_interface::ControllerInterf
                                                                                 0,   0,   0,   20,   0,   0,
                                                                                 0,   0,   0,   0,   20,   0,
                                                                                 0,   0,   0,   0,   0,   9).finished();
+
+*/
+  Eigen::MatrixXd M;
+  Eigen::Matrix<double, 6, 6> Lambda = IDENTITY;
+  Eigen::Matrix<double, 6, 6> K_cartesian_desired = (Eigen::MatrixXd(6,6) << 2500,   0,   0,   0,   0,   0,
+                                                                               0, 2500,   0,   0,   0,   0,
+                                                                               0,   0, 2500,   0,   0,   0,  // impedance stiffness term
+                                                                               0,   0,   0,  100,   0,   0,
+                                                                               0,   0,   0,   0,  100,   0,
+                                                                               0,   0,   0,   0,   0,  100).finished();
+
+  Eigen::Matrix<double, 6, 6> D_cartesian_desired = (Eigen::MatrixXd(6,6) <<  100,    0,   0,   0,   0,   0,
+                                                                                0,  100,   0,   0,   0,   0,
+                                                                                0,    0,  16,   0,   0,   0,  // impedance damping term
+                                                                                0,    0,   0,  20,   0,   0,
+                                                                                0,    0,   0,   0,  20,   0,
+                                                                                0,    0,   0,   0,   0,   9).finished();
 
   Eigen::Matrix<double, 6, 6> T_cartesian_desired = Eigen::Matrix<double, 6, 6>::Identity();
 
@@ -174,8 +192,25 @@ class JointImpedanceIkController : public controller_interface::ControllerInterf
   Eigen::VectorXd q_;
   Eigen::VectorXd dq_;
   Vector7d dq_filtered;
-  Vector7d k_gains_ = {85.0, 135.0, 90.0, 90.0, 15.0, 8.0, 3.0};
-  Vector7d d_gains_ {14.0, 23.0, 18.0, 18.0, 2.5, 1.8, 0.8};
+  //Vector7d k_gains_ = {85.0, 135.0, 90.0, 90.0, 15.0, 8.0, 3.0};
+  //Vector7d d_gains_ {14.0, 23.0, 18.0, 18.0, 2.5, 1.8, 0.8};
+
+  // joint compliance
+  Eigen::Matrix<double, 7, 7> K_joint =  (Eigen::MatrixXd(7,7) << 85,   0,   0,   0,   0,   0,  0,
+                                                                   0, 135,   0,   0,   0,   0,  0,
+                                                                   0,   0,  90,   0,   0,   0,  0, // impedance stiffness term
+                                                                   0,   0,   0,  90,   0,   0,  0,
+                                                                   0,   0,   0,   0,  15,   0,  0,
+                                                                   0,   0,   0,   0,   0,   8,  0,
+                                                                   0,   0,   0,   0,   0,   0,  3).finished();
+
+  Eigen::Matrix<double, 7, 7> D_joint =  (Eigen::MatrixXd(7,7) << 14,   0,   0,   0,    0,   0,    0,
+                                                                   0,  23,   0,   0,    0,   0,    0,
+                                                                   0,   0,  18,   0,    0,   0,    0, // impedance stiffness term
+                                                                   0,   0,   0,  18,    0,   0,    0,
+                                                                   0,   0,   0,   0,  2.5,   0,    0,
+                                                                   0,   0,   0,   0,    0, 1.8,    0,
+                                                                   0,   0,   0,   0,    0,   0,  0.8).finished();
   
 // jacobian and nullspaces
   Eigen::MatrixXd jacobian; //Jacobian of the end-effector
@@ -184,6 +219,7 @@ class JointImpedanceIkController : public controller_interface::ControllerInterf
   Eigen::Matrix<double, 7, 7> N = Eigen::MatrixXd::Zero(7, 7); //Nullspace matrix of the end-effector
   double nullspace_stiffness_{0.001};
   double nullspace_stiffness_target_{0.001};
+  double D_gain = 2.05;
   
 
   Eigen::Vector3d position_d_target_ = {0.3, 0.0, 0.5};

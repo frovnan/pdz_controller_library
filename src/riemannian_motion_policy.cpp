@@ -1146,6 +1146,8 @@ controller_interface::return_type RiemannianMotionPolicy::update(const rclcpp::T
     std::cout << "tau_d: " << tau_d.transpose() << std::endl;
     std::cout << "gravity torques: " << g.transpose() << std::endl;
     std::cout << "coriolis torques: " << coriolis.transpose() << std::endl;
+    std::cout << "K gains: " << K_RMP.diagonal().transpose() << std::endl;
+    std::cout << "D gains: " << D_RMP.diagonal().transpose() << std::endl;
     //std::cout << "mass matrix: \n" << M << std::endl;
     //std::cout << "(correct) torque: " << (M*ddq_).transpose() << std::endl;
     std::cout << "=============================" << std::endl;

@@ -479,8 +479,8 @@ controller_interface::return_type AdmittanceController::update(const rclcpp::Tim
 
   
   
-  if (outcounter % 1000 / update_frequency == 0){
-    
+  if (outcounter % 1000 == 0){
+    std::cout << "-------------------------------------------------------------------------------------" << std::endl;
     //std::cout << "F_ext_robot [N]" << std::endl;
     //std::cout << O_F_ext_hat_K << std::endl;
     //std::cout << O_F_ext_hat_K_M << std::endl;
@@ -523,6 +523,7 @@ controller_interface::return_type AdmittanceController::update(const rclcpp::Tim
     //std::cout << "Control mode is: " << control_mode <<  std::endl; */
     //std::cout << "F admittance is: " << F_admittance.transpose() <<  std::endl;
     //std::cout << "Orientation Error is: " << error.tail(3).transpose() <<  std::endl; 
+    std::cout << "-------------------------------------------------------------------------------------" << std::endl;
   }
   outcounter++;
   update_stiffness_and_references();
