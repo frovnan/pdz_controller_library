@@ -208,6 +208,23 @@ int main(int argc, char **argv) {
                         int number_of_points = 4; // number of randomly generated poses (excluding initial pose)
 
                         std::vector<CartesianPose> poses = generator.generate_poses(initial_pose_data, number_of_points);
+                        for (unsigned int i = 0; i < poses.size(); ++i) {
+                            std::cout << "---------------------------------------" << std::endl;
+                            std::cout << "position: " << poses[i].position.transpose() << std::endl;
+                            std::cout << "orientation: " << poses[i].orientation << std::endl;
+                            if (i > 0) {
+                                const auto& q_prev = poses[i - 1].orientation;
+                                const auto& q_curr = poses[i].orientation;
+
+                                Eigen::Quaterniond q_error = q_prev.inverse() * q_curr;
+                                q_error.normalize();
+
+                                double angle = 2.0 * std::acos(std::clamp(std::abs(q_error.w()), 0.0, 1.0));
+
+                                std::cout << "shortest rotation angle to next pose: " << angle * 180.0 / M_PI << " degrees" << std::endl;
+                            }
+                            std::cout << "---------------------------------------" << std::endl;
+                        }
                         
                         const double hold_time = 5.0;
                         const double move_time = 5.0;
@@ -283,10 +300,10 @@ int main(int argc, char **argv) {
                             */
 
                             rate.sleep();
-                        }                                                                          
+                        }  
+                        break;                                                                        
                     }
-                        break;                        
-                    
+                                                
                     case 2:{ // Discrete linear trajectories connecting n random points in task space
                         TrajectorySelector generator;
 
@@ -316,6 +333,23 @@ int main(int argc, char **argv) {
                         int number_of_points = 4; // number of randomly generated poses (excluding initial pose)
 
                         std::vector<CartesianPose> poses = generator.generate_poses(initial_pose_data, number_of_points);
+                        for (unsigned int i = 0; i < poses.size(); ++i) {
+                            std::cout << "---------------------------------------" << std::endl;
+                            std::cout << "position: " << poses[i].position.transpose() << std::endl;
+                            std::cout << "orientation: " << poses[i].orientation << std::endl;
+                            if (i > 0) {
+                                const auto& q_prev = poses[i - 1].orientation;
+                                const auto& q_curr = poses[i].orientation;
+
+                                Eigen::Quaterniond q_error = q_prev.inverse() * q_curr;
+                                q_error.normalize();
+
+                                double angle = 2.0 * std::acos(std::clamp(std::abs(q_error.w()), 0.0, 1.0));
+
+                                std::cout << "shortest rotation angle to next pose: " << angle * 180.0 / M_PI << " degrees" << std::endl;
+                            }
+                            std::cout << "---------------------------------------" << std::endl;
+                        }
 
                         const int num_slices = 3; // Number of step inputs to get from A to B
 
@@ -413,38 +447,50 @@ int main(int argc, char **argv) {
                             */
 
                             rate.sleep();
-                        }                                                                          
+                        }  
+                        break;                                                                        
                     }
-                        break;
-                    /*
-                    case 3:{ // Oscillations around starting pose for bode plot generation
-                        const float omega = M_PI / 10.0;
+                        
+                    case 3:{ // Oscillations around starting pose for freq response analysis
+                        const double amplitude = 0.05;
+                        const double omega_initial = M_PI / 2.0;
+                        const double frequency_ratio = 1.2;
+                        const double cycles_per_step = 5.0;
+                        const double startup_duration = 5.0;
+                        const double omega_max = M_PI * 100;
 
-                        TrajectorySelector generator;
-                        const double path_length = 0.7; // Length of the path in meters
-                        const double tolerance = 0.05; // Tolerance for the distance between points
+                        double omega = omega_initial;
+                        double next_switch_time = startup_duration + cycles_per_step * 2.0 * M_PI / omega;
 
-                        while(rclcpp::ok()) {
-                            double t = rclcpp::Clock().now().seconds() - t0;
+                        double phase = 0.0;
 
-                            if (t <= 5.0) { // Move to position A
-                                pose_request->x = position_A[0];
-                                pose_request->y = position_A[1];
-                                pose_request->z = position_A[2];
-                                pose_request->roll = position_A[3];
-                                pose_request->pitch = position_A[4];
-                                pose_request->yaw = position_A[5];
+                        while (rclcpp::ok()) {
+                            const double t = rclcpp::Clock().now().seconds() - t0;
+
+                            if (t >= next_switch_time && omega < omega_max) {
+                                omega = std::min(omega * frequency_ratio, omega_max);
+
+                                next_switch_time += cycles_per_step * 2.0 * M_PI / omega;
                             }
 
-                            pose_request->x = (position_A[0] + position_B[0]) / 2.0 + (position_A[0] - position_B[0]) / 2.0 * cos(omega * (t - 5.0));
-                            pose_request->y = (position_A[1] + position_B[1]) / 2.0 + (position_A[1] - position_B[1]) / 2.0 * cos(omega * (t - 5.0));
-                            pose_request->z = (position_A[2] + position_B[2]) / 2.0 + (position_A[2] - position_B[2]) / 2.0 * cos(omega * (t - 5.0));
-                            pose_request->roll = M_PI;
-                            pose_request->pitch = 0.0;
-                            pose_request->yaw = 0.0;
-
+                            if (t > startup_duration) {
+                                phase += omega * dt;
+                                pose_request->x = 0.3 + amplitude * std::sin(phase);
+                                pose_request->y = 0.0;
+                                pose_request->z = 0.5;
+                                pose_request->roll = M_PI;
+                                pose_request->pitch = 0.0;
+                                pose_request->yaw = 0.0;
+                            } else {
+                                pose_request->x = 0.3;
+                                pose_request->y = 0.0;
+                                pose_request->z = 0.5;
+                                pose_request->roll = M_PI;
+                                pose_request->pitch = 0.0;
+                                pose_request->yaw = 0.0;
+                            }
                             auto pose_result = pose_client->async_send_request(pose_request);
-
+                            
                             // --- Publish current desired pose for visualization ---
                             std_msgs::msg::Float64MultiArray desired_pose_msg;
                             desired_pose_msg.data = {   
@@ -461,7 +507,7 @@ int main(int argc, char **argv) {
                             std_msgs::msg::UInt8 trajectory_msg;
                             trajectory_msg.data = trajectory_selection;
                             trajectory_pub_->publish(trajectory_msg);
-
+                            
                             if(rclcpp::spin_until_future_complete(node, pose_result) ==  rclcpp::FutureReturnCode::SUCCESS){
                                 RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Trajectory update sent successfully.");
                                 std::cout << "Current Pose: x = " << pose_request->x << ", y = " << pose_request->y << ", z = " << pose_request->z
@@ -470,11 +516,12 @@ int main(int argc, char **argv) {
                             } else {
                                 RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Failed to call service setPose during trajectory.");
                             }
+                        
                         }
                         break;
                     }
-                    */
-                    case 4:{
+                    
+                    case 4:{ // Circle in xy plane + wave in z
                         // --- Publish trajectory type ---
                         std_msgs::msg::UInt8 trajectory_msg;
                         trajectory_msg.data = trajectory_selection;

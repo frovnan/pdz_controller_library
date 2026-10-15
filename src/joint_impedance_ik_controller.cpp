@@ -374,12 +374,13 @@ controller_interface::return_type JointImpedanceIkController::update(
   M = pinocchio::crba(model_, data_, q_);
   double damping = 1e-6;
   Lambda = (jacobian.topLeftCorner(6,7) * M.topLeftCorner(7,7).inverse() * jacobian.topLeftCorner(6,7).transpose() + damping * IDENTITY).inverse();
-  // Find joint impedance gains equivalent to desired cartesian impedance gains
+  // Find joint impedance gains equivalent to desired cartesian impedance gains K_q = J^T * K_x * J
   K_joint = jacobian.topLeftCorner(6,7).transpose() * K_cartesian_desired * jacobian.topLeftCorner(6,7);
   // correct cartesian D to be critically damped
   D_cartesian_desired = D_gain * K_cartesian_desired.cwiseMax(0.0).cwiseSqrt() * Lambda.cwiseMax(0.0).diagonal().cwiseSqrt().asDiagonal();
-  // Find joint impedance gains equivalent to desired cartesian impedance gains
+  // Find joint impedance gains equivalent to desired cartesian impedance gains D_q = J^T * D_x * J
   D_joint = jacobian.topLeftCorner(6,7).transpose() * D_cartesian_desired * jacobian.topLeftCorner(6,7);
+
   Eigen::VectorXd dq_ik = jacobian_pinv * error;
 
   

@@ -391,9 +391,6 @@ std::vector<CartesianPose> TrajectorySelector::generate_poses(const Candidate& i
         auto pose = select_random_candidate(filtered_poses);
         candidates.push_back(pose);
         poses.push_back(pose.pose);
-
-        std::cout << "position: " << pose.pose.position.transpose() << std::endl;
-        std::cout << "orientation: " << pose.pose.orientation << std::endl;
     }
     return poses;
 }

@@ -10,7 +10,7 @@ from rclpy.node import Node
 from std_msgs.msg import Float64MultiArray, UInt8
 
 
-class PoseErrorLogger(Node):
+class PoseDataLogger(Node):
 
     def __init__(self):
         super().__init__("pose_data_logger")
@@ -120,6 +120,11 @@ class PoseErrorLogger(Node):
     def trajectory_callback(self, message):
         self.trajectory_type = int(message.data)
 
+        if self.trajectory_type == 3:
+            self.duration = 200.0;
+        else:
+            self.duration = 60.0;    
+
     def check_duration(self):
         if self.start_wall_time is None or self.saved:
             return
@@ -178,7 +183,7 @@ class PoseErrorLogger(Node):
 def main(args=None):
     rclpy.init(args=args)
     print("Starting pose logger.")
-    logger = PoseErrorLogger()
+    logger = PoseDataLogger()
 
     try:
         rclpy.spin(logger)
