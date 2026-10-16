@@ -100,6 +100,7 @@ install(PROGRAMS
         scripts/log_pose_data.py
         scripts/plot_trajectory_data.py
         scripts/plot_frequency_data.py
+        scripts/plot_bode_data.py
         DESTINATION lib/${PROJECT_NAME})
 
 target_compile_definitions(${PROJECT_NAME} PUBLIC

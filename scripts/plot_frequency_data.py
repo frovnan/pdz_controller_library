@@ -61,6 +61,9 @@ def main():
         real_df = pd.read_csv(real_file)
         desired_df = pd.read_csv(desired_file)
 
+        real_df = real_df[real_df["time_s"] <= 125]
+        desired_df = desired_df[desired_df["time_s"] <= 125]
+
         for df, path in (
             (real_df, real_file),
             (desired_df, desired_file),
@@ -90,7 +93,7 @@ def main():
             zorder=2,
         )
 
-        ax.set_title(f"{title} — {timestamp}")
+        ax.set_title(f"{title}")
         ax.set_xlabel("Time (s)")
         ax.set_ylabel(f"{title} ({unit})")
         ax.grid(True, alpha=0.3)

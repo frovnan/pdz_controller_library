@@ -219,9 +219,9 @@ public:
     Eigen::Matrix<double, 7, 1> residual = Eigen::MatrixXd::Zero(7,1);
     Eigen::Matrix<double, 7, 1> residual_prev = Eigen::MatrixXd::Zero(7,1);
     Eigen::Matrix<double, 7, 1> tau_J;
-    Eigen::Matrix<double, 7, 7> M_prev= Eigen::MatrixXd::Zero(7,7); // Previous mass matrix for numerical differentiation
-    Eigen::Matrix<double, 7, 1> I_tau= Eigen::MatrixXd::Zero(7,1); // Integral of torque over time
-    Eigen::Matrix<double, 7, 1> I_tau_prev= Eigen::MatrixXd::Zero(7,1);
+    Eigen::Matrix<double, 7, 7> M_prev = Eigen::MatrixXd::Zero(7,7); // Previous mass matrix for numerical differentiation
+    Eigen::Matrix<double, 7, 1> I_tau = Eigen::MatrixXd::Zero(7,1); // Integral of torque over time
+    Eigen::Matrix<double, 7, 1> I_tau_prev = Eigen::MatrixXd::Zero(7,1);
     Eigen::Matrix<double, 7, 1> tau_commanded;  // To store commanded torques
     Eigen::Matrix<double, 7, 7> kp;  // Diagonal matrix for kp
     Eigen::Matrix<double, 7, 7> kd;  // Diagonal matrix for kd
@@ -236,7 +236,7 @@ public:
 
     //RMP Parameters
     
-    Eigen::Matrix<double, 7, 1> q_0= (Eigen::VectorXd(7) << 0.0, -1.4, 0.0, -1.356, 0.0, 1.57, 0.0).finished();
+    Eigen::Matrix<double, 7, 1> q_0 = (Eigen::VectorXd(7) << 0.0, -1.4, 0.0, -1.356, 0.0, 1.57, 0.0).finished();
     const Eigen::Matrix<double, 7, 1> q_lower_limit = (Eigen::VectorXd(7) << -2.74, -1.78,-2.9, -3.04, -2.8, 0.5445, -3.01).finished();
     const Eigen::Matrix<double, 7, 1> q_upper_limit = (Eigen::VectorXd(7) << 2.74,1.78, 2.9, -0.15, 2.8, 4.5169, 3.0).finished();
     
@@ -249,12 +249,12 @@ public:
     
     Eigen::Matrix<double, 7, 1> ddq_;
     Eigen::Matrix<double, 7, 1> tau_RMP;
-    Eigen::Matrix<double, 6, 6> K_RMP =  (Eigen::MatrixXd(6,6) << 1000,   0,   0,   0,   0,   0,
-                                                                    0, 1000,   0,   0,   0,   0,
-                                                                    0,   0, 1000,   0,   0,   0,  
-                                                                    0,   0,   0,  50,   0,   0,
-                                                                    0,   0,   0,   0,  50,   0,
-                                                                    0,   0,   0,   0,   0,  50).finished();
+    Eigen::Matrix<double, 6, 6> K_RMP =  (Eigen::MatrixXd(6,6) << 250,   0,   0,   0,   0,   0,
+                                                                    0, 250,   0,   0,   0,   0,
+                                                                    0,   0, 250,   0,   0,   0,  
+                                                                    0,   0,   0,  10,   0,   0,
+                                                                    0,   0,   0,   0,  10,   0,
+                                                                    0,   0,   0,   0,   0,  10).finished();
 
     Eigen::Matrix<double, 6, 6> D_RMP =  (Eigen::MatrixXd(6,6) <<  30,   0,   0,   0,   0,   0,
                                                                     0,  30,   0,   0,   0,   0,

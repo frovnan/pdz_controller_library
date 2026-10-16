@@ -161,8 +161,10 @@ select 'Trajectory' and your desired trajectory. After a set amount of time, the
 ros2 run pdz_controller_library plot_trajectory_data <controller_name> <trajectory> <timestamp>
 ```
 
-and a figure containing several subplots should appear in the same folder as the .csv files. To plot the frequency responses, run the plot_frequency_data script. Here you need to enter six timestamps, which will then be assigned in order to x, y, z, rx, ry, rz.
+and a figure containing several subplots should appear in the same folder as the .csv files. To plot the frequency responses or bode plots, run the plot_frequency_data or plot_bode_data script. Here you need to enter six timestamps, which will then be assigned in order to x, y, z, rx, ry, rz.
 
 ```bash
 ros2 run pdz_controller_library plot_frequency_data <controller_name> <list of 6 timestamps>
+
+ros2 run pdz_controller_library plot_bode_data <controller_name> <list of 6 timestamps>
 ```

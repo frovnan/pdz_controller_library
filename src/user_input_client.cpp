@@ -460,8 +460,7 @@ int main(int argc, char **argv) {
                                 << "2: Z\n"
                                 << "3: Roll\n"
                                 << "4: Pitch\n"
-                                << "5: Yaw\n"
-                                << "Choice: ";
+                                << "5: Yaw\n";
 
                         std::cin >> excited_dof;
 
@@ -502,6 +501,7 @@ int main(int argc, char **argv) {
 
                             if (t >= next_switch_time && omega < omega_max) {
                                 omega = std::min(omega * frequency_ratio, omega_max);
+                                std::cout << "Time of change: " << t << " sec" << std::endl;
                                 std::cout << "Current omega: " << omega << std::endl;
 
                                 next_switch_time += cycles_per_step * 2.0 * M_PI / omega;

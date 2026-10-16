@@ -40,7 +40,7 @@ def main():
     )
     parser.add_argument(
         "trajectory",
-        choices=["1", "2", "4"],
+        choices=["1", "2", "3" "4"],
         help="Trajectory type",
     )
     parser.add_argument(
