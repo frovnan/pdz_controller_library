@@ -452,7 +452,32 @@ int main(int argc, char **argv) {
                     }
                         
                     case 3:{ // Oscillations around starting pose for freq response analysis
-                        const double amplitude = 0.05;
+                        int excited_dof = 0;
+
+                        std::cout << "Select DoF to excite:\n"
+                                << "0: X\n"
+                                << "1: Y\n"
+                                << "2: Z\n"
+                                << "3: Roll\n"
+                                << "4: Pitch\n"
+                                << "5: Yaw\n"
+                                << "Choice: ";
+
+                        std::cin >> excited_dof;
+
+                        if (excited_dof < 0 || excited_dof > 5) {
+                            RCLCPP_ERROR(
+                                rclcpp::get_logger("rclcpp"),
+                                "Invalid DoF selection."
+                            );
+                            break;
+                        }
+                        std::array<double, 6> home_pose = {
+                            0.3, 0.0, 0.5, M_PI, 0.0, 0.0
+                        };
+
+                        const double pos_amplitude = 0.05;
+                        const double rot_amplitude = M_PI / 18.0;
                         const double omega_initial = M_PI / 2.0;
                         const double frequency_ratio = 1.2;
                         const double cycles_per_step = 5.0;
@@ -460,35 +485,44 @@ int main(int argc, char **argv) {
                         const double omega_max = M_PI * 100;
 
                         double omega = omega_initial;
-                        double next_switch_time = startup_duration + cycles_per_step * 2.0 * M_PI / omega;
-
+                        std::cout << "Current omega: " << omega << std::endl;
                         double phase = 0.0;
+
+                        double next_switch_time = startup_duration + cycles_per_step * 2.0 * M_PI / omega;
+                        double previous_t = 0.0;
+
+                        rclcpp::Rate rate(1000.0); // 1 kHz
 
                         while (rclcpp::ok()) {
                             const double t = rclcpp::Clock().now().seconds() - t0;
+                            const double dt = t - previous_t;
+                            previous_t = t;
+
+                            std::array<double, 6> desired_pose = home_pose;
 
                             if (t >= next_switch_time && omega < omega_max) {
                                 omega = std::min(omega * frequency_ratio, omega_max);
+                                std::cout << "Current omega: " << omega << std::endl;
 
                                 next_switch_time += cycles_per_step * 2.0 * M_PI / omega;
                             }
+                            
 
                             if (t > startup_duration) {
                                 phase += omega * dt;
-                                pose_request->x = 0.3 + amplitude * std::sin(phase);
-                                pose_request->y = 0.0;
-                                pose_request->z = 0.5;
-                                pose_request->roll = M_PI;
-                                pose_request->pitch = 0.0;
-                                pose_request->yaw = 0.0;
-                            } else {
-                                pose_request->x = 0.3;
-                                pose_request->y = 0.0;
-                                pose_request->z = 0.5;
-                                pose_request->roll = M_PI;
-                                pose_request->pitch = 0.0;
-                                pose_request->yaw = 0.0;
+
+                                const double amplitude = (excited_dof < 3) ? pos_amplitude : rot_amplitude;
+
+                                desired_pose[excited_dof] += amplitude * std::sin(phase);
                             }
+
+                            pose_request->x = desired_pose[0];
+                            pose_request->y = desired_pose[1];
+                            pose_request->z = desired_pose[2];
+                            pose_request->roll = desired_pose[3];
+                            pose_request->pitch = desired_pose[4];
+                            pose_request->yaw = desired_pose[5];
+                        
                             auto pose_result = pose_client->async_send_request(pose_request);
                             
                             // --- Publish current desired pose for visualization ---
@@ -507,7 +541,7 @@ int main(int argc, char **argv) {
                             std_msgs::msg::UInt8 trajectory_msg;
                             trajectory_msg.data = trajectory_selection;
                             trajectory_pub_->publish(trajectory_msg);
-                            
+                            /*
                             if(rclcpp::spin_until_future_complete(node, pose_result) ==  rclcpp::FutureReturnCode::SUCCESS){
                                 RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Trajectory update sent successfully.");
                                 std::cout << "Current Pose: x = " << pose_request->x << ", y = " << pose_request->y << ", z = " << pose_request->z
@@ -516,7 +550,8 @@ int main(int argc, char **argv) {
                             } else {
                                 RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Failed to call service setPose during trajectory.");
                             }
-                        
+                            */
+                            rate.sleep(); // 1 kHz
                         }
                         break;
                     }
@@ -574,9 +609,9 @@ int main(int argc, char **argv) {
                     }
                     
                     default:{
-                        pose_request->x = 0.5;
+                        pose_request->x = 0.3;
                         pose_request->y = 0.0;
-                        pose_request->z = 0.4;
+                        pose_request->z = 0.5;
                         pose_request->roll = M_PI;
                         pose_request->pitch = 0.0;
                         pose_request->yaw = 0.0;

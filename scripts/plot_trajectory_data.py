@@ -40,7 +40,7 @@ def main():
     )
     parser.add_argument(
         "trajectory",
-        choices=["1", "2", "3", "4"],
+        choices=["1", "2", "4"],
         help="Trajectory type",
     )
     parser.add_argument(
@@ -49,9 +49,6 @@ def main():
         help="Specific recording timestamp",
     )
     args = parser.parse_args()
-
-    # Example:
-    # ros2 run pdz_controller_library plot_pose_data.py joint_impedance_ik_controller 3 20261009_110617
 
     controller_dir = RESULTS_DIR / args.controller
 
@@ -105,13 +102,20 @@ def main():
     fig, axes = plt.subplots(9, 1, figsize=(10, 14), sharex=True)
 
     for ax, (column, label, ylabel) in zip(axes[:6], pose_plots):
-        ax.plot(real["time_s"], real[column], label=f"{label} measured")
         ax.plot(
             desired["time_s"],
             desired[column],
             label=f"{label} desired",
             linestyle="--",
+            color="orange"
         )
+        ax.plot(
+            real["time_s"], 
+            real[column], 
+            label=f"{label} measured",
+            color="tab:blue"
+        )
+
         ax.set_ylabel(ylabel)
         ax.legend(loc="upper right")
         ax.grid(True, alpha=0.3)
@@ -179,3 +183,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# Example:
+# ros2 run pdz_controller_library plot_trajectory_data.py joint_impedance_ik_controller 3 20261009_110617

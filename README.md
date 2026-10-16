@@ -158,7 +158,11 @@ ros2 run pdz_controller_library user_input_client
 select 'Trajectory' and your desired trajectory. After a set amount of time, the logger saves two .csv datasets in the results folder - one with the measured robot pose data, and one with the commanded pose data, both labeled with the controller name, the trajectory, and a timestamp. Run the plot_pose_data script
 
 ```bash
-ros2 run pdz_controller_library plot_pose_data <controller_name> <trajectory> <timestamp>
+ros2 run pdz_controller_library plot_trajectory_data <controller_name> <trajectory> <timestamp>
 ```
 
-and a figure containing several plots should appear in the same folder as the .csv files.
+and a figure containing several subplots should appear in the same folder as the .csv files. To plot the frequency responses, run the plot_frequency_data script. Here you need to enter six timestamps, which will then be assigned in order to x, y, z, rx, ry, rz.
+
+```bash
+ros2 run pdz_controller_library plot_frequency_data <controller_name> <list of 6 timestamps>
+```
