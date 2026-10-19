@@ -61,8 +61,8 @@ def main():
         real_df = pd.read_csv(real_file)
         desired_df = pd.read_csv(desired_file)
 
-        real_df = real_df[real_df["time_s"] <= 125]
-        desired_df = desired_df[desired_df["time_s"] <= 125]
+        real_df = real_df[real_df["time_s"] <= 165]
+        desired_df = desired_df[desired_df["time_s"] <= 165]
 
         for df, path in (
             (real_df, real_file),

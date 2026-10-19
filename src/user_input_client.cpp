@@ -479,13 +479,14 @@ int main(int argc, char **argv) {
                         const double rot_amplitude = M_PI / 18.0; // ...and rotational DoFs
 
                         const double omega_initial = M_PI / 2.0; // Starting oscillation frequency
-                        const double frequency_ratio = 1.2; // omega_{n+1} = 1.2*omega_n
+                        const double frequency_ratio = 1.2; // omega_{n+1} = 1.2 * omega_n
                         const double cycles_per_step = 5.0; // Amount of wavelengths for each omega
                         const double startup_duration = 5.0;
-                        const double omega_max = M_PI * 50;
+                        const double omega_max = 2 * M_PI * 4.0; // Cap omega at 8pi or 4Hz
 
                         double omega = omega_initial;
                         std::cout << "Current omega: " << omega << std::endl;
+                        std::cout << "------------------------------------" << std::endl;
 
                         const double hold_time = 3.0;
                         double step_start_time = startup_duration;
@@ -500,7 +501,10 @@ int main(int argc, char **argv) {
                             std::array<double, 6> desired_pose = home_pose;
 
                             if (t >= startup_duration && !sweep_finished) {
-                                const double wave_duration = cycles_per_step * 2.0 * M_PI / omega;
+                                const double wave_duration = std::max(
+                                    cycles_per_step * 2.0 * M_PI / omega, 
+                                    5.0
+                                ); // Lower bound on wave duration, to increase sample amount for high frequencies
 
                                 const double elapsed_step = t - step_start_time;
 
@@ -518,8 +522,9 @@ int main(int argc, char **argv) {
 
                                         omega = std::min(omega * frequency_ratio, omega_max);
 
-                                        std::cout << "Time of change: " << t << " sec" << std::endl;
+                                        std::cout << "Step start time: " << step_start_time << " sec" << std::endl;
                                         std::cout << "Current omega: " << omega << " rad/s" << std::endl;
+                                        std::cout << "------------------------------------" << std::endl;
                                     } else {
                                         // The final frequency step has finished.
                                         sweep_finished = true;
