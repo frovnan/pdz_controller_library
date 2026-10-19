@@ -121,7 +121,7 @@ class PoseDataLogger(Node):
         self.trajectory_type = int(message.data)
 
         if self.trajectory_type == 3:
-            self.duration = 130.0;
+            self.duration = 180.0;
         else:
             self.duration = 60.0;    
 
