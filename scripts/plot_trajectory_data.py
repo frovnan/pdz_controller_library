@@ -26,10 +26,7 @@ def calculate_error_metrics(position_error, orientation_error):
 
 def main():
     RESULTS_DIR = (
-        Path.home()
-        / "franka_ros2_ws"
-        / "src"
-        / "pdz_controller_library"
+        Path(__file__).resolve().parent.parent
         / "results"
     )
 

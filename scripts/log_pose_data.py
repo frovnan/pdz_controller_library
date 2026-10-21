@@ -137,10 +137,7 @@ class PoseDataLogger(Node):
             return
 
         results_dir = (
-            Path.home()
-            / "franka_ros2_ws"
-            / "src"
-            / "pdz_controller_library"
+            Path(__file__).resolve().parent.parent
             / "results"
             / self.controller_name
         )
