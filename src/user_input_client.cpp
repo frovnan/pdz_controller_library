@@ -2,7 +2,6 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include "messages_fr3/srv/set_pose.hpp"
-#include "messages_fr3/srv/set_param.hpp"
 
 #include <std_msgs/msg/float64_multi_array.hpp>
 #include <std_msgs/msg/u_int8.hpp>
@@ -75,14 +74,10 @@ int main(int argc, char **argv) {
         node->create_client<messages_fr3::srv::SetPose>("set_pose");
     auto pose_request = std::make_shared<messages_fr3::srv::SetPose::Request>();
 
-    rclcpp::Client<messages_fr3::srv::SetParam>::SharedPtr param_client =
-        node->create_client<messages_fr3::srv::SetParam>("set_param");
-    auto param_request = std::make_shared<messages_fr3::srv::SetParam::Request>();
-
-    int task_selection, pose_selection, trajectory_selection, param_selection;
+    int task_selection, pose_selection, trajectory_selection;
 
     while (rclcpp::ok()){
-        std::cout << "Enter the next task: \n [1] --> Change position \n [2] --> Trajectory \n [3] --> Change impedance parameters" << std::endl;
+        std::cout << "Enter the next task: \n [1] --> Change position \n [2] --> Trajectory" << std::endl;
         std::cin >> task_selection;
 
         switch (task_selection){
@@ -166,7 +161,6 @@ int main(int argc, char **argv) {
                 }
                 break;
             }
-
 
             case 2:{
                 std::cout << "Enter new goal position: \n [1] --> Continuous linear motion from A --> B \n [2] --> Discrete linear motion from A --> B \n [3] --> Frequency attenuation around home pose \n [4] --> Circle in xy-plane with z-oscillation" << std::endl;
@@ -635,41 +629,6 @@ int main(int argc, char **argv) {
                         pose_request->yaw = 0.0;
                         break;
                     }
-                }
-                break;
-            }
-
-            case 3:{                                
-                std::cout << "Enter new inertia: \n [1] --> N/A \n [2] --> N/A \n [3] --> N/A\n";
-                std::cin >> param_selection;
-
-                switch(param_selection){
-                    case 1:{
-                        param_request->a = 2;
-                        param_request->b = 0.5;
-                        param_request->c = 0.5;
-                        param_request->d = 2;
-                        param_request->e = 0.5;
-                        param_request->f = 0.5;
-                        break;
-                    }
-
-                    default:{
-                        param_request->a = 1;
-                        param_request->b = 1;
-                        param_request->c = 1;
-                        param_request->d = 1;
-                        param_request->e = 1;
-                        param_request->f = 1;
-                        break;
-                    }
-                }
-
-                auto param_result = param_client->async_send_request(param_request);
-                if(rclcpp::spin_until_future_complete(node, param_result) ==  rclcpp::FutureReturnCode::SUCCESS){
-                    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Sum: %d", param_result.get()->success);
-                } else {
-                    RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Failed to call service setParam");
                 }
                 break;
             }
