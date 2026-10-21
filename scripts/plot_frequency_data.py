@@ -3,6 +3,7 @@
 import argparse
 from pathlib import Path
 
+import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 
@@ -16,6 +17,17 @@ DOFS = [
     ("rz", "Yaw", "rad"),
 ]
 
+def correct_euler_angles(df, angle_column, threshold=1.0):
+    angles = df[angle_column].to_numpy().copy()
+
+    if angle_column == "rx":
+        angles[angles < threshold] += np.pi
+
+    elif angle_column in ("ry", "rz"):
+        angles[angles > threshold] -= np.pi
+        angles[angles < -threshold] += np.pi
+
+    return angles
 
 def main():
     parser = argparse.ArgumentParser(
@@ -61,8 +73,11 @@ def main():
         real_df = pd.read_csv(real_file)
         desired_df = pd.read_csv(desired_file)
 
-        real_df = real_df[real_df["time_s"] <= 165]
-        desired_df = desired_df[desired_df["time_s"] <= 165]
+        for angle_column in ["rx", "ry", "rz"]:
+            real_df[angle_column] = correct_euler_angles(real_df, angle_column).copy()
+
+        real_df = real_df[real_df["time_s"] <= 160]
+        desired_df = desired_df[desired_df["time_s"] <= 160]
 
         for df, path in (
             (real_df, real_file),

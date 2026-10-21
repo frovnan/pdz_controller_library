@@ -59,7 +59,17 @@ omega_steps = np.array([
     25.1327,
 ])
 
+def correct_euler_angles(df, angle_column, threshold=1.0):
+    angles = df[angle_column].to_numpy().copy()
 
+    if angle_column == "rx":
+        angles[angles < threshold] += np.pi
+
+    elif angle_column in ("ry", "rz"):
+        angles[angles > threshold] -= np.pi
+        angles[angles < -threshold] += np.pi
+
+    return angles
 
 
 def fit_sinusoid(time, signal, omega):
@@ -213,6 +223,10 @@ def main():
         real_df = pd.read_csv(real_file)
         desired_df = pd.read_csv(desired_file)
 
+        for angle_column in ["rx", "ry", "rz"]:
+            real_df[angle_column] = correct_euler_angles(real_df, angle_column).copy()
+            
+
         for df, path in (
             (real_df, real_file),
             (desired_df, desired_file),
@@ -223,8 +237,8 @@ def main():
                 )
 
         # Restrict to the recorded sweep.
-        #real_df = real_df[real_df["time_s"] <= 165]
-        #desired_df = desired_df[desired_df["time_s"] <= 165]
+        real_df = real_df[real_df["time_s"] <= 160]
+        desired_df = desired_df[desired_df["time_s"] <= 160]
 
         run_results = analyze_run(real_df, desired_df, column)
         all_results.extend(run_results)
