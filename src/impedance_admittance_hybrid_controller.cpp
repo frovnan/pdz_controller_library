@@ -450,15 +450,7 @@ void ImpedanceAdmittanceHybridController::updateJointStates() {
 // update (1kHz control loop)
 // ---------------------------------------------------------------------------
 controller_interface::return_type ImpedanceAdmittanceHybridController::update(const rclcpp::Time& /*time*/, const rclcpp::Duration& /*period*/) {  
-  #define DEBUG_CHECKPOINT(msg) \
-  RCLCPP_ERROR_ONCE( \
-    rclcpp::get_logger("hybrid_debug"), \
-    "[HYBRID DEBUG] %s", msg)
-
-  DEBUG_CHECKPOINT("01: Entered update");
-
   updateJointStates();
-  DEBUG_CHECKPOINT("02: updateJointStates completed");
 
   if (!first_valid_joint_state_received_) {
     RCLCPP_INFO_ONCE(
@@ -471,44 +463,17 @@ controller_interface::return_type ImpedanceAdmittanceHybridController::update(co
       command_interfaces_[i].set_value(0.0);
     }
 
-    DEBUG_CHECKPOINT("03: Initialization return");
     return controller_interface::return_type::OK;
   }
 
-  DEBUG_CHECKPOINT("04: Passed initialization guard");
-  
-  DEBUG_CHECKPOINT("05: Before rnea");
 
   Eigen::VectorXd dynamic_torques = pinocchio::rnea(model_, data_, q_, dq_, Eigen::VectorXd::Zero(model_.nv));
-
-  DEBUG_CHECKPOINT("06: After rnea");
-
   M = pinocchio::crba(model_, data_, q_);
-
-  DEBUG_CHECKPOINT("07: After crba");
-
   pinocchio::computeFrameJacobian(model_, data_, q_, end_effector_frame_id_, pinocchio::LOCAL_WORLD_ALIGNED, jacobian);
-
-  DEBUG_CHECKPOINT("08: After computeFrameJacobian");
-
   pinocchio::forwardKinematics(model_, data_, q_);
-
-  DEBUG_CHECKPOINT("09: After forwardKinematics");
-
   pinocchio::updateFramePlacements(model_, data_);
-
-  DEBUG_CHECKPOINT("10: After updateFramePlacements");
-
-  Eigen::VectorXd gravity =
-      pinocchio::computeGeneralizedGravity(model_, data_, q_);
-
-  DEBUG_CHECKPOINT("11: After computeGeneralizedGravity");
-
+  Eigen::VectorXd gravity = pinocchio::computeGeneralizedGravity(model_, data_, q_);
   coriolis = dynamic_torques - gravity;
-
-  DEBUG_CHECKPOINT("12: After coriolis calculation");
-
-  DEBUG_CHECKPOINT("13: Before transform construction");
 
   Eigen::Affine3d transform = Eigen::Affine3d::Identity();
   transform.linear() = data_.oMf[end_effector_frame_id_].rotation();
@@ -517,14 +482,10 @@ controller_interface::return_type ImpedanceAdmittanceHybridController::update(co
   Eigen::Vector3d position = transform.translation();
   Eigen::Quaterniond orientation(transform.rotation());
 
-  DEBUG_CHECKPOINT("14: After transform construction");
-
   orientation_d_target_ =
       Eigen::AngleAxisd(rotation_d_target_[0], Eigen::Vector3d::UnitX()) *
       Eigen::AngleAxisd(rotation_d_target_[1], Eigen::Vector3d::UnitY()) *
       Eigen::AngleAxisd(rotation_d_target_[2], Eigen::Vector3d::UnitZ());
-
-  DEBUG_CHECKPOINT("15: After target orientation");
 
   updateJointStates();
   calculating_environmental_force_norm();
@@ -533,27 +494,20 @@ controller_interface::return_type ImpedanceAdmittanceHybridController::update(co
   calculating_n();
   schmitt_trigger();
 
-  DEBUG_CHECKPOINT("16: After helper calculations");
-  
   Lambda = (jacobian.topLeftCorner(6,7) * M.topLeftCorner(7,7).inverse() * jacobian.topLeftCorner(6,7).transpose()).inverse();
+  if (!Lambda.allFinite()) {
+    RCLCPP_ERROR(rclcpp::get_logger("impedance_admittance_hybrid_controller"), "Lambda contains NaN!");
+  }
   Theta = Lambda;
   D = 2.05 * K.cwiseSqrt() * Lambda.diagonal().cwiseSqrt().asDiagonal();
 
-  DEBUG_CHECKPOINT("17: After Lambda/Theta/D calculation");
-
   w = jacobian * dq_;
-
-  DEBUG_CHECKPOINT("18: After Cartesian velocity");
 
   acceleration = (w - w_last) / dt;
   w_last = w;
 
   error_dot = (error - error_last) / dt;
   error_last = error;
-
-  DEBUG_CHECKPOINT("19: After acceleration and error derivatives");
-
-  DEBUG_CHECKPOINT("20: Error calculations");
 
   error.head(3) << position - position_d_;
   if (orientation_d_.coeffs().dot(orientation.coeffs()) < 0.0) {
@@ -562,14 +516,10 @@ controller_interface::return_type ImpedanceAdmittanceHybridController::update(co
   Eigen::Quaterniond error_quaternion(orientation.inverse() * orientation_d_);
   error.tail(3) << error_quaternion.x(), error_quaternion.y(), error_quaternion.z();
   error.tail(3) << -transform.rotation() * error.tail(3);
-  
-  DEBUG_CHECKPOINT("21: Force filterin");
 
   //Force Updates
   F_ext = 0.9 * F_ext + 0.1 * O_F_ext_hat_K_M; // noFiltering
   F_ext.head(3) = -F_ext.head(3);
-
-  DEBUG_CHECKPOINT("22: Quaternion calculations");
 
  // Convert x_d.tail(3) (Euler angles) to a quaternion
   Eigen::Matrix<double, 6, 1> virtual_error = Eigen::MatrixXd::Zero(6, 1);
@@ -581,8 +531,6 @@ controller_interface::return_type ImpedanceAdmittanceHybridController::update(co
   if (orientation_d_.coeffs().dot(x_d_orientation_quat_.coeffs()) < 0.0) {
       x_d_orientation_quat_.coeffs() << -x_d_orientation_quat_.coeffs();
   }
-
-  DEBUG_CHECKPOINT("23: Virtual error");
 
   Eigen::Quaterniond virtual_error_quat = (x_d_orientation_quat_.inverse() * orientation_d_);
 
@@ -597,7 +545,6 @@ controller_interface::return_type ImpedanceAdmittanceHybridController::update(co
   } else {
       virtual_error.tail(3).setZero();
   }
-
 
   //virtual_error.tail(3) = -x_d_orientation_quat_.toRotationMatrix() * virtual_error_quat.vec(); // vec for rotational part
   virtual_error.head(3) = x_d.head(3) - position_d_; //linear erro
@@ -623,8 +570,7 @@ controller_interface::return_type ImpedanceAdmittanceHybridController::update(co
   }
     
   //error here
-  
-  DEBUG_CHECKPOINT("24: Pose data gathering");
+
   //x - x_d
   Eigen::Quaterniond error_quaternion_current (orientation.inverse() * x_d_orientation_quat_);
   error_pd.tail(3) << error_quaternion_current.x(), error_quaternion_current.y(), error_quaternion_current.z();
@@ -650,9 +596,6 @@ controller_interface::return_type ImpedanceAdmittanceHybridController::update(co
   };
   real_pose_pub_->publish(real_pose_msg);
 
-  DEBUG_CHECKPOINT("25: Pose data published");
-  
-  DEBUG_CHECKPOINT("26: Entering switch");
 
   switch (mode_) {
     case 1:
@@ -811,9 +754,6 @@ controller_interface::return_type ImpedanceAdmittanceHybridController::update(co
       break;
   }
 
-  DEBUG_CHECKPOINT("27: Switch completed");
-
-  DEBUG_CHECKPOINT("28: torque calculation");
 
   //F_impedance = - Kp * error_pd  - Kd * w;
     
@@ -823,29 +763,34 @@ controller_interface::return_type ImpedanceAdmittanceHybridController::update(co
   F_cmd = Sf*(0.4 * (F_contact_des - F_ext)orientation_d_transpose_pinv); */
   Eigen::VectorXd tau_task(7), tau_nullspace(7), tau_d(7), tau_impedance(7);
   pseudoInverse(jacobian.topLeftCorner(6,7).transpose(), jacobian_transpose_pinv);
-
+  /*
   tau_nullspace << (Eigen::MatrixXd::Identity(7, 7) -
                     jacobian.topLeftCorner(6,7).transpose() * jacobian_transpose_pinv) *
                     (nullspace_stiffness_ * config_control * (q_d_nullspace_ - q_) - //if config_control = true we control the whole robot configuration
                     (2.0 * sqrt(nullspace_stiffness_)) * dq_);  // if config control ) false we don't care about the joint position
-
+  */
   //calculate_tau_friction();
-  tau_impedance = jacobian.transpose() * Sm * (F_output /*+ F_repulsion + F_potential*/)  /* + jacobian.transpose() * Sf * F_cmd*/;
-  auto tau_d_placeholder = tau_impedance + tau_nullspace + coriolis  /*tau_friction*/; //add nullspace and coriolis components to desired torque
-  tau_d << tau_d_placeholder;
+  tau_impedance = jacobian.topLeftCorner(6,7).transpose() * Sm * (F_output /*+ F_repulsion + F_potential*/)  /* + jacobian.transpose() * Sf * F_cmd*/;
+  auto tau_d_placeholder = tau_impedance + /*tau_nullspace +*/ coriolis  /*tau_friction*/; //add nullspace and coriolis components to desired torque
+  tau_d = tau_d_placeholder;
   tau_d << saturateTorqueRate(tau_d, tau_J_d_M);  // Saturate torque rate to avoid discontinuities
   tau_J_d_M = tau_d;
 
-  DEBUG_CHECKPOINT("29: commanding torques");
+  if (!tau_d.allFinite()) {
+    RCLCPP_ERROR(rclcpp::get_logger("impedance_admittance_hybrid_controller"), "tau_d contains NaN!");
+    tau_d.setZero(); // Set to zero or some safe value to prevent sending NaN torques to the robot
+  }
+
+  for (size_t i = 0; i < 9; ++i) {
+    tau_d[i] = std::clamp(tau_d[i], -20.0, 20.0);
+  }
 
   for (size_t i = 0; i < 7; ++i) {
     command_interfaces_[i].set_value(tau_d(i));
   }
-
-  DEBUG_CHECKPOINT("30: printing log");
   
   if (outcounter % 1000 == 0){
-
+    std::cout << "------------------------------------------------------------------------------" << std::endl;
     //std::cout << "loop_duration_imp [ms]: " << std::endl;
     //std::cout << loop_duration_imp << std::endl;
     //std::cout << "Target orientation: " << orientation_d_target_.toRotationMatrix().eulerAngles(0, 1, 2).transpose() << std::endl; //correct
@@ -860,11 +805,16 @@ controller_interface::return_type ImpedanceAdmittanceHybridController::update(co
     //std::cout << "Current k_e is: " << k_e <<  std::endl;
     //std::cout << "Current tau_impedance is: " << tau_impedance <<  std::endl;
     //std::cout << "Current counter is: " << counter <<  std::endl;
-    //std::cout << "If impedance " << flag_imp <<  std::endl;    
+    //std::cout << "If impedance " << flag_imp <<  std::endl;   
+    std::cout << "jacobian: " << std::endl;
+    std::cout << jacobian.topLeftCorner(6,7) << std::endl; 
+
     std::cout << "torques: " << tau_d.transpose() << std::endl;
+    
     std::cout << "position: " << position.transpose() << std::endl;
     std::cout << "orientation: " << orientation << std::endl;
     std::cout << "error: " << error.transpose() << std::endl;
+    std::cout << "-----------------------------------------------------------------------------" << std::endl;
   }
   outcounter++;
   update_stiffness_and_references();
