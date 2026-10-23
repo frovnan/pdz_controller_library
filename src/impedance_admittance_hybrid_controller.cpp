@@ -469,6 +469,7 @@ controller_interface::return_type ImpedanceAdmittanceHybridController::update(co
 
   Eigen::VectorXd dynamic_torques = pinocchio::rnea(model_, data_, q_, dq_, Eigen::VectorXd::Zero(model_.nv));
   M = pinocchio::crba(model_, data_, q_);
+  M.triangularView<Eigen::StrictlyLower>() = M.transpose().triangularView<Eigen::StrictlyLower>();
   pinocchio::computeFrameJacobian(model_, data_, q_, end_effector_frame_id_, pinocchio::LOCAL_WORLD_ALIGNED, jacobian);
   pinocchio::forwardKinematics(model_, data_, q_);
   pinocchio::updateFramePlacements(model_, data_);
@@ -598,8 +599,7 @@ controller_interface::return_type ImpedanceAdmittanceHybridController::update(co
 
 
   switch (mode_) {
-    case 1:
-      {
+    case 1:{ // Switching strategy
       if(counter_ == 0){
         n_current = n;
       } //make sure that within every loop the n is constant
@@ -627,7 +627,7 @@ controller_interface::return_type ImpedanceAdmittanceHybridController::update(co
 
           smooth_adm_imp = 0;
         } 
-        F_impedance_current = -1 * (D * (jacobian * dq_) + K /*K_imp*/ * error);
+        F_impedance_current = -1 * (D * (jacobian.topLeftCorner(6,7) * dq_) + K /*K_imp*/ * error);
         //F_impedance = (1 - n_current) * F_impedance_current + n_current * F_impedance_last; 
         desired_F = F_impedance_current; //desired_F for controlling the settling time, no impact on output
         //double blend_weight = 0.5 * (1 - cos(n_current * M_PI));
@@ -730,7 +730,7 @@ controller_interface::return_type ImpedanceAdmittanceHybridController::update(co
     }
     break;
 
-    case 3:{
+    case 3:{ // Pure impedance
       F_impedance_current = -1 * (D * (jacobian * dq_) + K /*K_imp*/ * error); //imp 
       desired_F = F_impedance_current; //desired_F for controlling the settling time, no impact on output
       //double blend_weight = 0.9;
@@ -740,7 +740,7 @@ controller_interface::return_type ImpedanceAdmittanceHybridController::update(co
     }
     break;
 
-    case 4:{
+    case 4:{ // Pure admittance
       F_admittance_current = - Kp * error_pd - Kd * w; //adm
       desired_F = F_admittance_current;
       //double blend_weight = 0.9;
@@ -771,9 +771,13 @@ controller_interface::return_type ImpedanceAdmittanceHybridController::update(co
   */
   //calculate_tau_friction();
   tau_impedance = jacobian.topLeftCorner(6,7).transpose() * Sm * (F_output /*+ F_repulsion + F_potential*/)  /* + jacobian.transpose() * Sf * F_cmd*/;
-  auto tau_d_placeholder = tau_impedance + /*tau_nullspace +*/ coriolis  /*tau_friction*/; //add nullspace and coriolis components to desired torque
+  auto tau_d_placeholder = tau_impedance + /*tau_nullspace +*/ coriolis.head(7)  /*tau_friction*/; //add nullspace and coriolis components to desired torque
   tau_d = tau_d_placeholder;
-  tau_d << saturateTorqueRate(tau_d, tau_J_d_M);  // Saturate torque rate to avoid discontinuities
+  if (!tau_d.allFinite()) {
+    RCLCPP_ERROR(rclcpp::get_logger("impedance_admittance_hybrid_controller"), "tau_d contains NaN!");
+    tau_d.setZero(); // Set to zero or some safe value to prevent sending NaN torques to the robot
+  }
+  tau_d = saturateTorqueRate(tau_d, tau_J_d_M);  // Saturate torque rate to avoid discontinuities
   tau_J_d_M = tau_d;
 
   if (!tau_d.allFinite()) {
@@ -809,11 +813,20 @@ controller_interface::return_type ImpedanceAdmittanceHybridController::update(co
     std::cout << "jacobian: " << std::endl;
     std::cout << jacobian.topLeftCorner(6,7) << std::endl; 
 
+    std::cout << "mass matrix: " << std::endl;
+    std::cout << M.topLeftCorner(7,7) << std::endl;
+
+    std::cout << "Lambda: " << std::endl;
+    std::cout << Lambda.topLeftCorner(6,6) << std::endl;
+
     std::cout << "torques: " << tau_d.transpose() << std::endl;
-    
+
     std::cout << "position: " << position.transpose() << std::endl;
     std::cout << "orientation: " << orientation << std::endl;
     std::cout << "error: " << error.transpose() << std::endl;
+
+    std::cout << "joint positions: " << q_.transpose() << std::endl;
+    std::cout << "joint velocities: " << dq_.transpose() << std::endl;
     std::cout << "-----------------------------------------------------------------------------" << std::endl;
   }
   outcounter++;

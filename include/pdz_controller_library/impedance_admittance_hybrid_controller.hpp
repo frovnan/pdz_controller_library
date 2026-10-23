@@ -147,7 +147,7 @@ ImpedanceAdmittanceHybridController();
     // The URDF (Unified Robot Description Format) file describes the robot's structure, including its links, joints, and physical properties.
     pinocchio::Model model_;
     pinocchio::Data data_;
-    // std::string urdf_path_ = "/home/matteo/franka_ros2_ws/src/franka_description/robots/fr3/fr3.urdf"; // Path to your robot's URDF file
+    
     int end_effector_frame_id_; // Frame ID for the end-effector
 
     const double delta_tau_max_{1.0};
@@ -157,16 +157,16 @@ ImpedanceAdmittanceHybridController();
     Eigen::Matrix<double, 6, 6> Lambda = IDENTITY;                                           // operational space mass matrix
     Eigen::Matrix<double, 6, 6> Sm = IDENTITY;                                               // task space selection matrix for positions and rotation
     Eigen::Matrix<double, 6, 6> Sf = Eigen::MatrixXd::Zero(6, 6);                            // task space selection matrix for forces
-    Eigen::Matrix<double, 6, 6> K =  (Eigen::MatrixXd(6,6) << 250,   0,   0,   0,   0,   0,
-                                                                0, 250,   0,   0,   0,   0,
-                                                                0,   0, 250,   0,   0,   0,  // impedance stiffness term
-                                                                0,   0,   0, 30,   0,   0,
-                                                                0,   0,   0,   0, 30,   0,
-                                                                0,   0,   0,   0,   0,  12).finished() ;
+    Eigen::Matrix<double, 6, 6> K =  (Eigen::MatrixXd(6,6) << 200,   0,   0,   0,   0,   0,
+                                                                0, 200,   0,   0,   0,   0,
+                                                                0,   0, 200,   0,   0,   0,  // impedance stiffness term
+                                                                0,   0,   0, 10,   0,   0,
+                                                                0,   0,   0,   0, 10,   0,
+                                                                0,   0,   0,   0,   0,  10).finished() ;
 
     Eigen::Matrix<double, 6, 6> D =  Eigen::MatrixXd(6,6) ;// impedance damping term
 
-    Eigen::Matrix<double, 6, 6> K_imp =  (Eigen::MatrixXd(6,6) << 800,   0,   0,   0,   0,   0,
+    Eigen::Matrix<double, 6, 6> K_imp = (Eigen::MatrixXd(6,6) << 800,   0,   0,   0,   0,   0,
                                                                 0, 800,   0,   0,   0,   0,
                                                                 0,   0, 800,   0,   0,   0,  // impedance stiffness term
                                                                 0,   0,   0, 80,   0,   0,
@@ -260,7 +260,16 @@ ImpedanceAdmittanceHybridController();
 
     //Filter-parameters
     double filter_params_{0.001};
-    int mode_ = 4;
+
+
+    /*
+    Modes:
+    1: High speed switching <-- selected
+    2: Schmitt trigger
+    3: Pure impedance
+    4: Pure admittance
+    */
+    int mode_ = 1; 
 
 
 
