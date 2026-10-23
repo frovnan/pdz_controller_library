@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <pdz_controller_library/impedance_admittance_hybrid_controller.hpp>
+#include <pdz_controller_library/robot_utils.hpp>
 
 #include <cassert>
 #include <cmath>
@@ -55,14 +56,14 @@ ImpedanceAdmittanceHybridController::ImpedanceAdmittanceHybridController()  { //
 }
 
 
-
+/*
 //to be added in hybrid_controller.hpptions are copied from the previous hybrid_control_naive package. To be aware that the
 //switching process might have problems with continuity
 void ImpedanceAdmittanceHybridController::topic_callback(const std::shared_ptr<franka_msgs::msg::FrankaRobotState> msg) {
   O_F_ext_hat_K = convertToStdArray(msg->o_f_ext_hat_k);
   arrayToMatrix(O_F_ext_hat_K, O_F_ext_hat_K_M); 
 }
-
+*/
 
 
 // ---------------------------------------------------------------------------
@@ -139,7 +140,7 @@ void ImpedanceAdmittanceHybridController::calculating_n(){
 } //n = 1 => total admittance; n = 0 => total impedance
 
 
-
+/*
 // ---------------------------------------------------------------------------
 // write_to_file
 // ---------------------------------------------------------------------------
@@ -152,6 +153,7 @@ void write_to_file(const std::string& filename, double value) { //output n and F
     output_file << value << std::endl;
     output_file.close();
 }
+*/
 
 
 
@@ -248,12 +250,11 @@ inline void pseudoInverse(const Eigen::MatrixXd& M_, Eigen::MatrixXd& M_pinv_, b
 // ---------------------------------------------------------------------------
 // command_interface_configuration
 // ---------------------------------------------------------------------------
-controller_interface::InterfaceConfiguration
-ImpedanceAdmittanceHybridController::command_interface_configuration() const {
+controller_interface::InterfaceConfiguration ImpedanceAdmittanceHybridController::command_interface_configuration() const {
   controller_interface::InterfaceConfiguration config;
   config.type = controller_interface::interface_configuration_type::INDIVIDUAL;
   for (int i = 1; i <= num_joints; ++i) {
-    config.names.push_back(arm_id_ + "_joint" + std::to_string(i) + "/effort");
+    config.names.push_back(robot_name_ + "_joint" + std::to_string(i) + "/effort");
   }
   return config;
 }
@@ -269,16 +270,11 @@ controller_interface::InterfaceConfiguration ImpedanceAdmittanceHybridController
   state_interfaces_config.type = controller_interface::interface_configuration_type::INDIVIDUAL;
 
   for (int i = 1; i <= num_joints; ++i) {
-    state_interfaces_config.names.push_back(arm_id_ + "_joint" + std::to_string(i) + "/position");
-    state_interfaces_config.names.push_back(arm_id_ + "_joint" + std::to_string(i) + "/velocity");
+    state_interfaces_config.names.push_back(robot_name_ + "_joint" + std::to_string(i) + "/position");
+    state_interfaces_config.names.push_back(robot_name_ + "_joint" + std::to_string(i) + "/velocity");
   }
 
-  for (const auto& franka_robot_model_name : franka_robot_model_->get_state_interface_names()) {
-    state_interfaces_config.names.push_back(franka_robot_model_name);
-    std::cout << franka_robot_model_name << std::endl;
-  }
-
-  const std::string full_interface_name = arm_id_ + "/" + state_interface_name_;
+  const std::string full_interface_name = robot_name_ + "/" + state_interface_name_;
 
   return state_interfaces_config;
 }
@@ -304,27 +300,42 @@ CallbackReturn ImpedanceAdmittanceHybridController::on_init() {
 // on_configure
 // ---------------------------------------------------------------------------
 CallbackReturn ImpedanceAdmittanceHybridController::on_configure(const rclcpp_lifecycle::State& /*previous_state*/) {
-  RCLCPP_INFO(get_node()->get_logger(), "Starting on_configure...");
-  franka_robot_model_ = std::make_unique<franka_semantic_components::FrankaRobotModel>(
-  franka_semantic_components::FrankaRobotModel(arm_id_ + "/" + k_robot_model_interface_name,
-                                               arm_id_ + "/" + k_robot_state_interface_name));
-                                               
   try {
-    rclcpp::QoS qos_profile(1); // Depth of the message queue
-    qos_profile.reliability(RMW_QOS_POLICY_RELIABILITY_RELIABLE);
-    franka_state_subscriber = get_node()->create_subscription<franka_msgs::msg::FrankaRobotState>(
-    "franka_robot_state_broadcaster/robot_state", qos_profile, 
-    std::bind(&ImpedanceAdmittanceHybridController::topic_callback, this, std::placeholders::_1));
-    std::cout << "Succesfully subscribed to robot_state_broadcaster" << std::endl;
-  }
 
-  catch (const std::exception& e) {
-    fprintf(stderr,  "Exception thrown during publisher creation at configure stage with message : %s \n",e.what());
-    return CallbackReturn::ERROR;
+    RCLCPP_INFO(get_node()->get_logger(), "Starting on_configure...");
+
+    // Retrieve the robot_description parameter
+    // This retrieves the robot_description parameter from the ROS 2 parameter server.
+    // If the parameter is not found, an error is logged, and the controller fails to configure.
+    std::string robot_description;
+    auto parameters_client = std::make_shared<rclcpp::AsyncParametersClient>(get_node(), "/robot_state_publisher");
+    parameters_client->wait_for_service();
+    auto future = parameters_client->get_parameters({"robot_description"});
+    auto result = future.get();
+    if (!result.empty()) {
+      robot_description = result[0].value_to_string();
+      RCLCPP_INFO(get_node()->get_logger(), "'robot_description' parameter retrieved successfully.");
+    } else {
+      RCLCPP_ERROR(get_node()->get_logger(), "Failed to get robot_description parameter.");
+      return CallbackReturn::ERROR;
     }
-
-
-  RCLCPP_DEBUG(get_node()->get_logger(), "configured successfully");
+    // Parse the URDF using Pinocchio
+    // The robot_description parameter contains the URDF as a string.
+    // The buildModelFromXML function parses the URDF and initializes the Pinocchio model.
+    pinocchio::urdf::buildModelFromXML(robot_description, model_);
+    data_ = pinocchio::Data(model_);
+    RCLCPP_INFO(get_node()->get_logger(), "Pinocchio model parsed successfully.");
+  
+    // Set the end-effector frame ID
+    // This frame is used for Cartesian impedance control.
+    end_effector_frame_id_ = model_.getFrameId("fr3_hand");
+    RCLCPP_INFO(get_node()->get_logger(), "Pinocchio model loaded successfully.");
+  } 
+  catch (const std::exception& e) {
+    RCLCPP_ERROR(get_node()->get_logger(), "Failed to load Pinocchio model: %s", e.what());
+    return CallbackReturn::ERROR;
+  }
+  RCLCPP_INFO(get_node()->get_logger(), "on_configure completed successfully.");
   return CallbackReturn::SUCCESS;
 }
 
@@ -333,34 +344,39 @@ CallbackReturn ImpedanceAdmittanceHybridController::on_configure(const rclcpp_li
 // ---------------------------------------------------------------------------
 // on_activate
 // ---------------------------------------------------------------------------
-CallbackReturn ImpedanceAdmittanceHybridController::on_activate(
-  const rclcpp_lifecycle::State& /*previous_state*/) {
-  RCLCPP_INFO(get_node()->get_logger(), "Starting on_activate...");
-  franka_robot_model_->assign_loaned_state_interfaces(state_interfaces_);
-
-    desired_pose_sub = get_node()->create_subscription<geometry_msgs::msg::Pose>(
-        "admittance_controller/reference_pose", 
-        10,  // Queue size
-        std::bind(&ImpedanceAdmittanceHybridController::reference_pose_callback, this, std::placeholders::_1)
-    );
-
-  std::array<double, 16> initial_pose = franka_robot_model_->getPoseMatrix(franka::Frame::kEndEffector);
-  Eigen::Affine3d initial_transform(Eigen::Matrix4d::Map(initial_pose.data()));
-  position_d_ = initial_transform.translation();
-  orientation_d_ = Eigen::Quaterniond(initial_transform.rotation());
-   //for admittance control
-  x_d_orientation_quat.coeffs() << orientation_d_.coeffs();
-  //x_d_orientation_quat.normalize();
-
-
-  x_d.head(3) << position_d_;
-  x_d.tail(3) << x_d_orientation_quat.toRotationMatrix().eulerAngles(0, 1, 2); //might be wrong
+CallbackReturn ImpedanceAdmittanceHybridController::on_activate(const rclcpp_lifecycle::State& /*previous_state*/) {
+  // Reset initialization flag on activation
+  first_valid_joint_state_received_ = false;
+  RCLCPP_INFO(get_node()->get_logger(), "Controller activated. Waiting for first valid joint state.");
   
-  std::cout << "position_d, orientation_d, on_activate is: " << position_d_.transpose() << " " << initial_transform.rotation().eulerAngles(0, 1, 2).transpose() <<  std::endl;    // Debugging
-  std::cout << "position_d_target on activation is: " << position_d_target_.transpose() <<  std::endl;    // Debugging
-  std::cout << "x_desired head on_activate is: " << x_d.head(3) <<  std::endl;    // Debugging
-  std::cout << "x_desired tail on_activate is: " << x_d.tail(3) <<  std::endl;    // Debugging
-  RCLCPP_INFO(get_node()->get_logger(), "Completed Activation process");
+
+  std::cout << "Available frames in the model:" << std::endl;
+  for (const auto& frame : model_.frames) {
+  std::cout << frame.name << std::endl;
+  }
+  std::cout << "Number of available velocities:" << model_.nv << std::endl;
+  dq_.resize(model_.nv);
+  q_.resize(model_.nq);
+
+  RCLCPP_INFO(get_node()->get_logger(), "model nq = %d, nv = %d", model_.nq, model_.nv);
+
+  RCLCPP_INFO(get_node()->get_logger(), "q_ size: %zu", q_.size());
+  RCLCPP_INFO(get_node()->get_logger(), "dq_ size: %zu", dq_.size());
+  for (size_t i = 0; i < model_.names.size(); ++i) {
+    std::cout << i << ": " << model_.names[i] << std::endl;
+  }
+  updateJointStates();
+  jacobian.resize(6, model_.nv);
+  jacobian_transpose_pinv.resize(model_.nv, 6);
+  pinocchio::forwardKinematics(model_, data_, q_);
+  pinocchio::updateFramePlacements(model_, data_);
+  //Eigen::Affine3d initial_transform(data_.oMf[end_effector_frame_id_]);
+  Eigen::Affine3d transform;
+  transform.linear() = data_.oMf[end_effector_frame_id_].rotation();  // Extract rotation
+  transform.translation() = data_.oMf[end_effector_frame_id_].translation();  // Extract translation
+  position_d_ = transform.translation();
+  orientation_d_ = Eigen::Quaterniond(transform.rotation());
+  std::cout << "Completed Activation process" << std::endl;
   return CallbackReturn::SUCCESS;
 }
 
@@ -369,9 +385,7 @@ CallbackReturn ImpedanceAdmittanceHybridController::on_activate(
 // ---------------------------------------------------------------------------
 // on_deactivate
 // ---------------------------------------------------------------------------
-controller_interface::CallbackReturn ImpedanceAdmittanceHybridController::on_deactivate(
-  const rclcpp_lifecycle::State& /*previous_state*/) {
-  franka_robot_model_->release_interfaces();
+controller_interface::CallbackReturn ImpedanceAdmittanceHybridController::on_deactivate(const rclcpp_lifecycle::State& /*previous_state*/) {
   RCLCPP_INFO(get_node()->get_logger(), "Controller deactivated.");
   return CallbackReturn::SUCCESS;
 }
@@ -436,47 +450,110 @@ void ImpedanceAdmittanceHybridController::updateJointStates() {
 // update (1kHz control loop)
 // ---------------------------------------------------------------------------
 controller_interface::return_type ImpedanceAdmittanceHybridController::update(const rclcpp::Time& /*time*/, const rclcpp::Duration& /*period*/) {  
+  #define DEBUG_CHECKPOINT(msg) \
+  RCLCPP_ERROR_ONCE( \
+    rclcpp::get_logger("hybrid_debug"), \
+    "[HYBRID DEBUG] %s", msg)
 
-  if(outcounter == 0){
-    RCLCPP_INFO(get_node()->get_logger(), "Starting control loop...");
+  DEBUG_CHECKPOINT("01: Entered update");
+
+  updateJointStates();
+  DEBUG_CHECKPOINT("02: updateJointStates completed");
+
+  if (!first_valid_joint_state_received_) {
+    RCLCPP_INFO_ONCE(
+        rclcpp::get_logger("impedance_admittance_hybrid_controller"),
+        "Waiting for first valid joint state...");
+
+    first_valid_joint_state_received_ = true;
+
+    for (size_t i = 0; i < 7; ++i) {
+      command_interfaces_[i].set_value(0.0);
+    }
+
+    DEBUG_CHECKPOINT("03: Initialization return");
+    return controller_interface::return_type::OK;
   }
 
-  std::array<double, 49> mass = franka_robot_model_->getMassMatrix(); //M(q)
-  std::array<double, 7> coriolis_array = franka_robot_model_->getCoriolisForceVector();  //h(q,q_dot)
-  std::array<double, 42> jacobian_array =  franka_robot_model_->getZeroJacobian(franka::Frame::kEndEffector); //J
-  std::array<double, 16> pose = franka_robot_model_->getPoseMatrix(franka::Frame::kEndEffector); //state_of_
+  DEBUG_CHECKPOINT("04: Passed initialization guard");
   
-  Eigen::Map<Eigen::Matrix<double, 7, 1>> coriolis(coriolis_array.data());
-  Eigen::Map<Eigen::Matrix<double, 6, 7>> jacobian(jacobian_array.data());
-  Eigen::Map<Eigen::Matrix<double, 7, 7>> M(mass.data());
-  
-  Eigen::Affine3d transform(Eigen::Matrix4d::Map(pose.data()));
-  Eigen::Vector3d position(transform.translation());
+  DEBUG_CHECKPOINT("05: Before rnea");
+
+  Eigen::VectorXd dynamic_torques = pinocchio::rnea(model_, data_, q_, dq_, Eigen::VectorXd::Zero(model_.nv));
+
+  DEBUG_CHECKPOINT("06: After rnea");
+
+  M = pinocchio::crba(model_, data_, q_);
+
+  DEBUG_CHECKPOINT("07: After crba");
+
+  pinocchio::computeFrameJacobian(model_, data_, q_, end_effector_frame_id_, pinocchio::LOCAL_WORLD_ALIGNED, jacobian);
+
+  DEBUG_CHECKPOINT("08: After computeFrameJacobian");
+
+  pinocchio::forwardKinematics(model_, data_, q_);
+
+  DEBUG_CHECKPOINT("09: After forwardKinematics");
+
+  pinocchio::updateFramePlacements(model_, data_);
+
+  DEBUG_CHECKPOINT("10: After updateFramePlacements");
+
+  Eigen::VectorXd gravity =
+      pinocchio::computeGeneralizedGravity(model_, data_, q_);
+
+  DEBUG_CHECKPOINT("11: After computeGeneralizedGravity");
+
+  coriolis = dynamic_torques - gravity;
+
+  DEBUG_CHECKPOINT("12: After coriolis calculation");
+
+  DEBUG_CHECKPOINT("13: Before transform construction");
+
+  Eigen::Affine3d transform = Eigen::Affine3d::Identity();
+  transform.linear() = data_.oMf[end_effector_frame_id_].rotation();
+  transform.translation() = data_.oMf[end_effector_frame_id_].translation();
+
+  Eigen::Vector3d position = transform.translation();
   Eigen::Quaterniond orientation(transform.rotation());
-  orientation_d_target_ = Eigen::AngleAxisd(rotation_d_target_[0], Eigen::Vector3d::UnitX())
-                        * Eigen::AngleAxisd(rotation_d_target_[1], Eigen::Vector3d::UnitY())
-                        * Eigen::AngleAxisd(rotation_d_target_[2], Eigen::Vector3d::UnitZ());
-  
-  updateJointStates(); 
+
+  DEBUG_CHECKPOINT("14: After transform construction");
+
+  orientation_d_target_ =
+      Eigen::AngleAxisd(rotation_d_target_[0], Eigen::Vector3d::UnitX()) *
+      Eigen::AngleAxisd(rotation_d_target_[1], Eigen::Vector3d::UnitY()) *
+      Eigen::AngleAxisd(rotation_d_target_[2], Eigen::Vector3d::UnitZ());
+
+  DEBUG_CHECKPOINT("15: After target orientation");
+
+  updateJointStates();
   calculating_environmental_force_norm();
   calculating_position_norm();
   update_environmental_stiffness();
   calculating_n();
   schmitt_trigger();
 
+  DEBUG_CHECKPOINT("16: After helper calculations");
+  
+  Lambda = (jacobian.topLeftCorner(6,7) * M.topLeftCorner(7,7).inverse() * jacobian.topLeftCorner(6,7).transpose()).inverse();
   Theta = Lambda;
-  D = 2.05* K.cwiseSqrt() * Lambda.diagonal().cwiseSqrt().asDiagonal(); // Admittance control law to compute desired trajectory
-  w = jacobian * dq_; // cartesian velocity
+  D = 2.05 * K.cwiseSqrt() * Lambda.diagonal().cwiseSqrt().asDiagonal();
 
+  DEBUG_CHECKPOINT("17: After Lambda/Theta/D calculation");
 
-  //calculating acceleration
-  acceleration = (w - w_last)/dt;
+  w = jacobian * dq_;
+
+  DEBUG_CHECKPOINT("18: After Cartesian velocity");
+
+  acceleration = (w - w_last) / dt;
   w_last = w;
 
-  //calculating error_dot
-  error_dot = (error-error_last)/dt;
+  error_dot = (error - error_last) / dt;
   error_last = error;
 
+  DEBUG_CHECKPOINT("19: After acceleration and error derivatives");
+
+  DEBUG_CHECKPOINT("20: Error calculations");
 
   error.head(3) << position - position_d_;
   if (orientation_d_.coeffs().dot(orientation.coeffs()) < 0.0) {
@@ -486,24 +563,28 @@ controller_interface::return_type ImpedanceAdmittanceHybridController::update(co
   error.tail(3) << error_quaternion.x(), error_quaternion.y(), error_quaternion.z();
   error.tail(3) << -transform.rotation() * error.tail(3);
   
-  Lambda = (jacobian * M.inverse() * jacobian.transpose()).inverse();
+  DEBUG_CHECKPOINT("21: Force filterin");
+
   //Force Updates
   F_ext = 0.9 * F_ext + 0.1 * O_F_ext_hat_K_M; // noFiltering
   F_ext.head(3) = -F_ext.head(3);
 
+  DEBUG_CHECKPOINT("22: Quaternion calculations");
 
  // Convert x_d.tail(3) (Euler angles) to a quaternion
- Eigen::Matrix<double, 6, 1> virtual_error = Eigen::MatrixXd::Zero(6, 1);
-  x_d_orientation_quat = Eigen::AngleAxisd(x_d.tail(3)(0), Eigen::Vector3d::UnitX())
+  Eigen::Matrix<double, 6, 1> virtual_error = Eigen::MatrixXd::Zero(6, 1);
+  x_d_orientation_quat_ = Eigen::AngleAxisd(x_d.tail(3)(0), Eigen::Vector3d::UnitX())
                         * Eigen::AngleAxisd(x_d.tail(3)(1), Eigen::Vector3d::UnitY())
                         * Eigen::AngleAxisd(x_d.tail(3)(2), Eigen::Vector3d::UnitZ());
 
 
-  if (orientation_d_.coeffs().dot(x_d_orientation_quat.coeffs()) < 0.0) {
-      x_d_orientation_quat.coeffs() << -x_d_orientation_quat.coeffs();
+  if (orientation_d_.coeffs().dot(x_d_orientation_quat_.coeffs()) < 0.0) {
+      x_d_orientation_quat_.coeffs() << -x_d_orientation_quat_.coeffs();
   }
 
-  Eigen::Quaterniond virtual_error_quat = (x_d_orientation_quat.inverse() * orientation_d_);
+  DEBUG_CHECKPOINT("23: Virtual error");
+
+  Eigen::Quaterniond virtual_error_quat = (x_d_orientation_quat_.inverse() * orientation_d_);
 
   // Normalize and check small norm
   if (virtual_error_quat.norm() > 1e-6) {
@@ -518,7 +599,7 @@ controller_interface::return_type ImpedanceAdmittanceHybridController::update(co
   }
 
 
-  //virtual_error.tail(3) = -x_d_orientation_quat.toRotationMatrix() * virtual_error_quat.vec(); // vec for rotational part
+  //virtual_error.tail(3) = -x_d_orientation_quat_.toRotationMatrix() * virtual_error_quat.vec(); // vec for rotational part
   virtual_error.head(3) = x_d.head(3) - position_d_; //linear erro
 
   //F_ext?
@@ -530,22 +611,22 @@ controller_interface::return_type ImpedanceAdmittanceHybridController::update(co
   // Create the rotation increment quaternion
   Eigen::Quaterniond rotation_increment = Eigen::Quaterniond(Eigen::AngleAxisd(angular_displacement.norm(), angular_displacement.normalized()));
 
-  x_d_orientation_quat = (rotation_increment * x_d_orientation_quat).normalized(); // Normalize to avoid drift
+  x_d_orientation_quat_ = (rotation_increment * x_d_orientation_quat_).normalized(); // Normalize to avoid drift
   //Convert final x_d_orientation_quat back to Euler angles if needed
-  x_d.tail(3) = x_d_orientation_quat.toRotationMatrix().eulerAngles(0, 1, 2);
+  x_d.tail(3) = x_d_orientation_quat_.toRotationMatrix().eulerAngles(0, 1, 2);
   x_d.head(3) += x_dot_d.head(3) * dt; 
   //x_d.head(3) << 0,0,0;
   error_pd.head(3) << position - x_d.head(3);
   //error_pd.head(3) <<0,0,0;
-  if (x_d_orientation_quat.coeffs().dot(orientation.coeffs()) < 0.0) {
+  if (x_d_orientation_quat_.coeffs().dot(orientation.coeffs()) < 0.0) {
   orientation.coeffs() << -orientation.coeffs();
   }
     
   //error here
   
-  
+  DEBUG_CHECKPOINT("24: Pose data gathering");
   //x - x_d
-  Eigen::Quaterniond error_quaternion_current (orientation.inverse() * x_d_orientation_quat);
+  Eigen::Quaterniond error_quaternion_current (orientation.inverse() * x_d_orientation_quat_);
   error_pd.tail(3) << error_quaternion_current.x(), error_quaternion_current.y(), error_quaternion_current.z();
   error_pd.tail(3) << -transform.rotation() * error_pd.tail(3); 
 
@@ -568,213 +649,183 @@ controller_interface::return_type ImpedanceAdmittanceHybridController::update(co
     manipulability
   };
   real_pose_pub_->publish(real_pose_msg);
+
+  DEBUG_CHECKPOINT("25: Pose data published");
   
+  DEBUG_CHECKPOINT("26: Entering switch");
 
-  switch (mode_)
-  {
-  case 1:
-    {
-    if(counter_ == 0){
-      n_current = n;
-    } //make sure that within every loop the n is constant
+  switch (mode_) {
+    case 1:
+      {
+      if(counter_ == 0){
+        n_current = n;
+      } //make sure that within every loop the n is constant
 
-    if(counter < (20 - n_current * 20)) { // Impedance control
+      if(counter < (20 - n_current * 20)) { // Impedance control
 
-      if (smooth_adm_imp == 1){
-        pos_d_switching.head(3) << position_d_;
-        pos_d_switching.tail(3) << orientation_d_.toRotationMatrix().eulerAngles(0, 1, 2);
+        if (smooth_adm_imp == 1){
+          pos_d_switching.head(3) << position_d_;
+          pos_d_switching.tail(3) << orientation_d_.toRotationMatrix().eulerAngles(0, 1, 2);
 
-        /*pos_switching_imp = K.inverse() * (Kp * error_pd + Kd *w - D*w) + pos_d_switching;
+          /*pos_switching_imp = K.inverse() * (Kp * error_pd + Kd *w - D*w) + pos_d_switching;
+          
+          error.head(3) << pos_switching_imp.head(3) - position_d_;
+          orientation = Eigen::AngleAxisd(pos_switching_imp[4], Eigen::Vector3d::UnitZ()) *
+                            Eigen::AngleAxisd(pos_switching_imp[5], Eigen::Vector3d::UnitY()) *
+                            Eigen::AngleAxisd(pos_switching_imp[6], Eigen::Vector3d::UnitX());
+          Eigen::Quaterniond error_quaternion(orientation.inverse() * orientation_d_);
+          error.tail(3) << error_quaternion.x(), error_quaternion.y(), error_quaternion.z();
+          error.tail(3) << -transform.rotation() * error.tail(3); */
+
+          error = K.inverse() * (Kp * error_pd + Kd *w_last - D*w_last);
+
+
+          //error = Lambda.inverse() * (Kp * error_pd + Kd * w - D * w);
+
+          smooth_adm_imp = 0;
+        } 
+        F_impedance_current = -1 * (D * (jacobian * dq_) + K /*K_imp*/ * error);
+        //F_impedance = (1 - n_current) * F_impedance_current + n_current * F_impedance_last; 
+        desired_F = F_impedance_current; //desired_F for controlling the settling time, no impact on output
+        //double blend_weight = 0.5 * (1 - cos(n_current * M_PI));
+        double blend_weight = 0.9;
+        F_output = blend_weight * F_impedance_current + (1 - blend_weight) * F_last;
+        //delta_F_impedance = F_impedance_current - F_impedance_last;
+        //delta_F_impedance = delta_F_impedance.cwiseMax(-max_F_impedance).cwiseMin(max_F_impedance);
+        //F_impedance = F_impedance_last + delta_F_impedance;
+        F_last = F_output;
+        ++counter;
+        ++counter_;
+        flag_imp = true;
+        smooth_imp_adm = 1;
+
+      } else if(counter < 20) { // Admittance control
+
+        if(smooth_imp_adm == 1){
+
+          pos_switching_adm.head(3) << position;
+          pos_switching_adm.tail(3) << orientation.toRotationMatrix().eulerAngles(0, 1, 2);
         
-        error.head(3) << pos_switching_imp.head(3) - position_d_;
-        orientation = Eigen::AngleAxisd(pos_switching_imp[4], Eigen::Vector3d::UnitZ()) *
-                          Eigen::AngleAxisd(pos_switching_imp[5], Eigen::Vector3d::UnitY()) *
-                          Eigen::AngleAxisd(pos_switching_imp[6], Eigen::Vector3d::UnitX());
-        Eigen::Quaterniond error_quaternion(orientation.inverse() * orientation_d_);
-        error.tail(3) << error_quaternion.x(), error_quaternion.y(), error_quaternion.z();
-        error.tail(3) << -transform.rotation() * error.tail(3); */
 
-        error = K.inverse() * (Kp * error_pd + Kd *w_last - D*w_last);
+          //x - x_d
+          /*error_pd.head(3) << position - x_d.head(3);
+          Eigen::Quaterniond x_d_quat = Eigen::AngleAxisd(x_d[4], Eigen::Vector3d::UnitZ()) *
+                            Eigen::AngleAxisd(x_d[5], Eigen::Vector3d::UnitY()) *
+                            Eigen::AngleAxisd(x_d[6], Eigen::Vector3d::UnitX());
+          Eigen::Quaterniond error_quaternion_x_d(orientation.inverse()*x_d_quat );
+          error_pd.tail(3) << error_quaternion_x_d.x(), error_quaternion_x_d.y(), error_quaternion_x_d.z();
+          error_pd.tail(3) << -transform.rotation() * error_pd.tail(3); */
+
+          error_pd = Kp.inverse() * (D * w_last + K /*K_imp*/ * error - Kd * w_last);
+          x_d = pos_switching_adm - error_pd;
+          x_dot_d = -Kp.inverse() * (D * acceleration + K * w_last /*- position_d_, which is 0 in test case*/ - Kd * acceleration) + w;
+
+          /*
+          pos_switching_adm.head(3) << position;
+          pos_switching_adm.tail(3) << orientation.toRotationMatrix().eulerAngles(0, 1, 2);
+          Eigen::Matrix<double, 6, 1> A = F_ext - K * error - D * w;
+          x_d = pos_switching_adm + Kp.inverse() * (Kd * w- F_ext + Lambda.inverse() * A);
+          error_pd.head(3) << position - x_d.head(3);
+          Eigen::Quaterniond x_d_quat = Eigen::AngleAxisd(x_d[4], Eigen::Vector3d::UnitZ()) *
+                      Eigen::AngleAxisd(x_d[5], Eigen::Vector3d::UnitY()) *
+                        Eigen::AngleAxisd(x_d[6], Eigen::Vector3d::UnitX());
+          Eigen::Quaterniond error_quaternion_x_d(orientation.inverse() * x_d_quat );
+          error_pd.tail(3) << error_quaternion_x_d.x(), error_quaternion_x_d.y(), error_quaternion_x_d.z();
+          error_pd.tail(3) << -transform.rotation() * error_pd.tail(3);
+          virtual_error.head(3) = x_d.head(3) - position_d_;
+          */
+          //x_dot_d.setZero();//naive Initialization 
+        
+          smooth_imp_adm = 0;
+        }
+          
+        
+        F_admittance_current  = - Kp * error_pd - Kd * w_last;
+        
+        //F_impedance = n_current * F_impedance_current + (1 - n_current) * F_impedance_last;
+        desired_F = F_admittance_current;
+        double blend_weight = 0.9;
+        F_output = blend_weight * F_admittance_current + (1 - blend_weight) * F_last;
+
+      
+        //delta_F_impedance = F_admittance_current - F_impedance_last;
+        //delta_F_impedance = delta_F_impedance.cwiseMax(-max_F_impedance).cwiseMin(max_F_impedance);
+        //F_impedance = F_impedance_last + delta_F_impedance;
+        F_last = F_output;
+        ++counter;
+        ++counter_;
+        flag_imp = false;
+        smooth_adm_imp = 1;
+      } else {
+        counter = 0;
+        counter_ = 0;
+      }
+      //F_output.tail(3) = Eigen::Vector3d(0, 0, 0);//test
 
 
-        //error = Lambda.inverse() * (Kp * error_pd + Kd * w - D * w);
-
-        smooth_adm_imp = 0;
       } 
-      F_impedance_current = -1 * (D * (jacobian * dq_) + K /*K_imp*/ * error);
-      //F_impedance = (1 - n_current) * F_impedance_current + n_current * F_impedance_last; 
-      desired_F = F_impedance_current; //desired_F for controlling the settling time, no impact on output
-      //double blend_weight = 0.5 * (1 - cos(n_current * M_PI));
-      double blend_weight = 0.9;
-      F_output = blend_weight * F_impedance_current + (1 - blend_weight) * F_last;
-      //delta_F_impedance = F_impedance_current - F_impedance_last;
-      //delta_F_impedance = delta_F_impedance.cwiseMax(-max_F_impedance).cwiseMin(max_F_impedance);
-      //F_impedance = F_impedance_last + delta_F_impedance;
-      F_last = F_output;
-      ++counter;
-      ++counter_;
-      flag_imp = true;
-      smooth_imp_adm = 1;
-
-    } else if(counter < 20) { // Admittance control
-
-       if(smooth_imp_adm == 1){
-
-        pos_switching_adm.head(3) << position;
-        pos_switching_adm.tail(3) << orientation.toRotationMatrix().eulerAngles(0, 1, 2);
-       
-
-        //x - x_d
-        /*error_pd.head(3) << position - x_d.head(3);
-        Eigen::Quaterniond x_d_quat = Eigen::AngleAxisd(x_d[4], Eigen::Vector3d::UnitZ()) *
-                          Eigen::AngleAxisd(x_d[5], Eigen::Vector3d::UnitY()) *
-                          Eigen::AngleAxisd(x_d[6], Eigen::Vector3d::UnitX());
-        Eigen::Quaterniond error_quaternion_x_d(orientation.inverse()*x_d_quat );
-        error_pd.tail(3) << error_quaternion_x_d.x(), error_quaternion_x_d.y(), error_quaternion_x_d.z();
-        error_pd.tail(3) << -transform.rotation() * error_pd.tail(3); */
-
-        error_pd = Kp.inverse() * (D * w_last + K /*K_imp*/ * error - Kd * w_last);
-        x_d = pos_switching_adm - error_pd;
-        x_dot_d = -Kp.inverse() * (D * acceleration + K * w_last /*- position_d_, which is 0 in test case*/ - Kd * acceleration) + w;
-
-        /*
-        pos_switching_adm.head(3) << position;
-        pos_switching_adm.tail(3) << orientation.toRotationMatrix().eulerAngles(0, 1, 2);
-        Eigen::Matrix<double, 6, 1> A = F_ext - K * error - D * w;
-        x_d = pos_switching_adm + Kp.inverse() * (Kd * w- F_ext + Lambda.inverse() * A);
-        error_pd.head(3) << position - x_d.head(3);
-        Eigen::Quaterniond x_d_quat = Eigen::AngleAxisd(x_d[4], Eigen::Vector3d::UnitZ()) *
-                     Eigen::AngleAxisd(x_d[5], Eigen::Vector3d::UnitY()) *
-                      Eigen::AngleAxisd(x_d[6], Eigen::Vector3d::UnitX());
-        Eigen::Quaterniond error_quaternion_x_d(orientation.inverse() * x_d_quat );
-        error_pd.tail(3) << error_quaternion_x_d.x(), error_quaternion_x_d.y(), error_quaternion_x_d.z();
-        error_pd.tail(3) << -transform.rotation() * error_pd.tail(3);
-        virtual_error.head(3) = x_d.head(3) - position_d_;
-        */
-        //x_dot_d.setZero();//naive Initialization 
-       
-        smooth_imp_adm = 0;
-       }
-         
-      
-      F_admittance_current  = - Kp * error_pd - Kd * w_last;
-      
-      //F_impedance = n_current * F_impedance_current + (1 - n_current) * F_impedance_last;
-      desired_F = F_admittance_current;
-      double blend_weight = 0.9;
-      F_output = blend_weight * F_admittance_current + (1 - blend_weight) * F_last;
-
-    
-      //delta_F_impedance = F_admittance_current - F_impedance_last;
-      //delta_F_impedance = delta_F_impedance.cwiseMax(-max_F_impedance).cwiseMin(max_F_impedance);
-      //F_impedance = F_impedance_last + delta_F_impedance;
-      F_last = F_output;
-      ++counter;
-      ++counter_;
-      flag_imp = false;
-      smooth_adm_imp = 1;
-    } else {
-      counter = 0;
-      counter_ = 0;
-    }
-    //F_output.tail(3) = Eigen::Vector3d(0, 0, 0);//test
-
-
-    } 
-  break;
-
-  case 2:{ //schmitt trigger
-    if(schmitt_adm == true){
-      Eigen::Matrix<double, 6, 1> F_admittance_current = - Kp * error_pd - Kd * w_last;
-      desired_F = F_admittance_current;
-      double blend_weight = 0.9;
-      F_output = blend_weight * F_admittance_current + (1 - blend_weight) * F_last;
-      F_last = F_output;
-      flag_imp = false;
-    }
-    else{
-      Eigen::Matrix<double, 6, 1> F_impedance_current = -1 * (D * (jacobian * dq_) + K /*K_imp*/ * error);
-      //F_impedance = (1 - n_current) * F_impedance_current + n_current * F_impedance_last; 
-      desired_F = F_impedance_current; //desired_F for controlling the settling time, no impact on output
-      double blend_weight = 0.9;
-      F_output = blend_weight * F_impedance_current + (1 - blend_weight) * F_last;
-      F_last = F_output;
-      flag_imp = true;
-    }
-  }
-  break;
-
-  case 3:{
-    F_impedance_current = -1 * (D * (jacobian * dq_) + K /*K_imp*/ * error); //imp 
-    desired_F = F_impedance_current; //desired_F for controlling the settling time, no impact on output
-    //double blend_weight = 0.9;
-    //F_output = blend_weight * F_impedance_current + (1 - blend_weight) * F_last;
-    F_output = F_impedance_current;
-    F_last = F_output;
-  }
-  break;
-
-  case 4:{
-    F_admittance_current = - Kp * error_pd - Kd * w; //adm
-    desired_F = F_admittance_current;
-    //double blend_weight = 0.9;
-    //F_output = blend_weight * F_admittance_current + (1 - blend_weight) * F_last;
-    F_output = F_admittance_current;
-    F_last = F_output;
-  }
-  break;
-  
-  default:
     break;
+
+    case 2:{ //schmitt trigger
+      if(schmitt_adm == true){
+        Eigen::Matrix<double, 6, 1> F_admittance_current = - Kp * error_pd - Kd * w_last;
+        desired_F = F_admittance_current;
+        double blend_weight = 0.9;
+        F_output = blend_weight * F_admittance_current + (1 - blend_weight) * F_last;
+        F_last = F_output;
+        flag_imp = false;
+      }
+      else{
+        Eigen::Matrix<double, 6, 1> F_impedance_current = -1 * (D * (jacobian * dq_) + K /*K_imp*/ * error);
+        //F_impedance = (1 - n_current) * F_impedance_current + n_current * F_impedance_last; 
+        desired_F = F_impedance_current; //desired_F for controlling the settling time, no impact on output
+        double blend_weight = 0.9;
+        F_output = blend_weight * F_impedance_current + (1 - blend_weight) * F_last;
+        F_last = F_output;
+        flag_imp = true;
+      }
+    }
+    break;
+
+    case 3:{
+      F_impedance_current = -1 * (D * (jacobian * dq_) + K /*K_imp*/ * error); //imp 
+      desired_F = F_impedance_current; //desired_F for controlling the settling time, no impact on output
+      //double blend_weight = 0.9;
+      //F_output = blend_weight * F_impedance_current + (1 - blend_weight) * F_last;
+      F_output = F_impedance_current;
+      F_last = F_output;
+    }
+    break;
+
+    case 4:{
+      F_admittance_current = - Kp * error_pd - Kd * w; //adm
+      desired_F = F_admittance_current;
+      //double blend_weight = 0.9;
+      //F_output = blend_weight * F_admittance_current + (1 - blend_weight) * F_last;
+      F_output = F_admittance_current;
+      F_last = F_output;
+    }
+    break;
+    
+    default:
+      break;
   }
 
-  /* 
-  write_to_file("ke_data.txt", k_e);
-  write_to_file("n.txt", n);
-  write_to_file("output_x.txt", F_output[0]);
-  write_to_file("output_y.txt", F_output[1]);
-  write_to_file("output_z.txt", F_output[2]);
-  //write_to_file("desired_F_x", desired_F[1]);
-  write_to_file("Flag_imp.txt", flag_imp);
-  write_to_file("error_at_x.txt", error[0]);
-  write_to_file("error_at_y.txt", error[1]);
-  write_to_file("error_at_z.txt", error[2]);
-  write_to_file("position_x.txt", position[0]);
-  write_to_file("position_y.txt", position[1]);
-  write_to_file("position_z.txt", position[2]); //
-  write_to_file("desired_x.txt", position_d_[0]);
-  write_to_file("desired_y.txt", position_d_[1]);
-  write_to_file("desired_z.txt", position_d_[2]);
-  write_to_file("external_Force_x.txt", O_F_ext_hat_K_M[0]);
-  write_to_file("external_Force_y.txt", O_F_ext_hat_K_M[1]);
-  write_to_file("external_Force_z.txt", O_F_ext_hat_K_M[2]);
-  write_to_file("position_d_target_x_.txt", position_d_target_[0]);
-  write_to_file("position_d_target_y_.txt", position_d_target_[1]);
-  write_to_file("position_d_target_z_.txt", position_d_target_[2]); //
-  write_to_file("error_norm.txt", error.head(3).norm());
-  
-  write_to_file("position_x.txt", position[0]);
-  write_to_file("position_y.txt", position[1]);
-  write_to_file("position_z.txt", position[2]); //
-  write_to_file("position_d_target_x_.txt", position_d_target_[0]);
-  write_to_file("position_d_target_y_.txt", position_d_target_[1]);
-  write_to_file("position_d_target_z_.txt", position_d_target_[2]); //
-  write_to_file("output_x.txt", F_output[0]);
-  write_to_file("output_y.txt", F_output[1]);
-  write_to_file("output_z.txt", F_output[2]);
-  */
+  DEBUG_CHECKPOINT("27: Switch completed");
 
-    //F_impedance = - Kp * error_pd  - Kd * w;
+  DEBUG_CHECKPOINT("28: torque calculation");
+
+  //F_impedance = - Kp * error_pd  - Kd * w;
     
   //in admittance, F_ext.head(3) = -F_ext.head(3), why?
  // F_ext = 0.9 * F_ext + 0.1 * O_F_ext_hat_K_M; //Filtering 
   /*I_F_error += dt * Sf* (F_contact_des - F_ext);
   F_cmd = Sf*(0.4 * (F_contact_des - F_ext)orientation_d_transpose_pinv); */
   Eigen::VectorXd tau_task(7), tau_nullspace(7), tau_d(7), tau_impedance(7);
-  pseudoInverse(jacobian.transpose(), jacobian_transpose_pinv);
+  pseudoInverse(jacobian.topLeftCorner(6,7).transpose(), jacobian_transpose_pinv);
 
   tau_nullspace << (Eigen::MatrixXd::Identity(7, 7) -
-                    jacobian.transpose() * jacobian_transpose_pinv) *
+                    jacobian.topLeftCorner(6,7).transpose() * jacobian_transpose_pinv) *
                     (nullspace_stiffness_ * config_control * (q_d_nullspace_ - q_) - //if config_control = true we control the whole robot configuration
                     (2.0 * sqrt(nullspace_stiffness_)) * dq_);  // if config control ) false we don't care about the joint position
 
@@ -785,11 +836,15 @@ controller_interface::return_type ImpedanceAdmittanceHybridController::update(co
   tau_d << saturateTorqueRate(tau_d, tau_J_d_M);  // Saturate torque rate to avoid discontinuities
   tau_J_d_M = tau_d;
 
+  DEBUG_CHECKPOINT("29: commanding torques");
+
   for (size_t i = 0; i < 7; ++i) {
     command_interfaces_[i].set_value(tau_d(i));
   }
+
+  DEBUG_CHECKPOINT("30: printing log");
   
-  if (outcounter % 1000/update_frequency == 0){
+  if (outcounter % 1000 == 0){
 
     //std::cout << "loop_duration_imp [ms]: " << std::endl;
     //std::cout << loop_duration_imp << std::endl;
@@ -799,13 +854,17 @@ controller_interface::return_type ImpedanceAdmittanceHybridController::update(co
     //std::cout << "Orientation Error_pd is: " << error.tail(3).transpose() <<  std::endl; //correct
     //std::cout << "Orientation_d_ is: " << orientation_d_.toRotationMatrix().eulerAngles(0, 1, 2).transpose() <<  std::endl;
     //std::cout << "Orientation is: " << orientation.toRotationMatrix().eulerAngles(0, 1, 2).transpose() <<  std::endl;
-    std::cout << "Current n is: " << n <<  std::endl;
+    //std::cout << "Current n is: " << n <<  std::endl;
     //std::cout << "Current F_norm_current is: " << F_norm_current <<  std::endl;
     //std::cout << "Current X_norm_current is: " << X_norm_current <<  std::endl;
-    std::cout << "Current k_e is: " << k_e <<  std::endl;
-    std::cout << "Current tau_impedance is: " << tau_impedance <<  std::endl;
-    std::cout << "Current counter is: " << counter <<  std::endl;
-    std::cout << "If impedance " << flag_imp <<  std::endl;    
+    //std::cout << "Current k_e is: " << k_e <<  std::endl;
+    //std::cout << "Current tau_impedance is: " << tau_impedance <<  std::endl;
+    //std::cout << "Current counter is: " << counter <<  std::endl;
+    //std::cout << "If impedance " << flag_imp <<  std::endl;    
+    std::cout << "torques: " << tau_d.transpose() << std::endl;
+    std::cout << "position: " << position.transpose() << std::endl;
+    std::cout << "orientation: " << orientation << std::endl;
+    std::cout << "error: " << error.transpose() << std::endl;
   }
   outcounter++;
   update_stiffness_and_references();

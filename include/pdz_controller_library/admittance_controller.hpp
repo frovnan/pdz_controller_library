@@ -24,7 +24,8 @@
 #include <string>
 #include <unistd.h>
 #include <thread>
-#include <chrono>         
+#include <chrono>
+#include <future>         
 
 #include <pdz_controller_library/user_input_server.hpp>
 
@@ -37,19 +38,17 @@
 
 #include <controller_interface/controller_interface.hpp>
 
-#include <franka/model.h>
-#include <franka/robot.h>
-#include <franka/robot_state.h>
-
-#include <franka_hardware/franka_hardware_interface.hpp>
-#include <franka_hardware/model.hpp>
-
 #include <franka_msgs/msg/franka_robot_state.hpp>
 #include <franka_msgs/msg/errors.hpp>
 #include <messages_fr3/srv/set_pose.hpp>
+#include <std_msgs/msg/string.hpp>
 
-#include <franka_semantic_components/franka_robot_model.hpp>
-#include <franka_semantic_components/franka_robot_state.hpp>
+#include <pinocchio/parsers/urdf.hpp>
+#include <pinocchio/algorithm/kinematics.hpp>
+#include <pinocchio/algorithm/crba.hpp>
+#include <pinocchio/algorithm/rnea.hpp>
+#include <pinocchio/algorithm/frames.hpp>
+#include <pinocchio/algorithm/jacobian.hpp>
 
 #define IDENTITY Eigen::MatrixXd::Identity(6, 6)
 #define POSITION_CONTROL 0
@@ -93,7 +92,6 @@ public:
 
  private:
     //Nodes
-    rclcpp::Subscription<franka_msgs::msg::FrankaRobotState>::SharedPtr franka_state_subscriber = nullptr;
     rclcpp::Subscription<geometry_msgs::msg::Pose>::SharedPtr desired_pose_sub;
     rclcpp::Service<messages_fr3::srv::SetPose>::SharedPtr pose_srv_;
 
@@ -102,7 +100,6 @@ public:
 
     //Functions
     void calculate_tau_friction();   //friction compensation
-    void topic_callback(const std::shared_ptr<franka_msgs::msg::FrankaRobotState> msg);
     void reference_pose_callback(const geometry_msgs::msg::Pose::SharedPtr msg);
     void updateJointStates();
     void update_stiffness_and_references();
@@ -111,19 +108,21 @@ public:
     Eigen::Matrix<double, 7, 1> saturateTorqueRate(const Eigen::Matrix<double, 7, 1>& tau_d_calculated, const Eigen::Matrix<double, 7, 1>& tau_J_d);  
     std::array<double, 6> convertToStdArray(const geometry_msgs::msg::WrenchStamped& wrench);
     //State vectors and matrices
-    Eigen::Matrix<double, 7, 7> M;
-    Eigen::Matrix<double, 6, 7> jacobian;
     std::array<double, 7> q_subscribed;
     std::array<double, 7> tau_J_d = {0,0,0,0,0,0,0};
     std::array<double, 6> O_F_ext_hat_K = {0,0,0,0,0,0};
     Eigen::Matrix<double, 7, 1> q_subscribed_M;
     Eigen::Matrix<double, 7, 1> tau_J_d_M = Eigen::MatrixXd::Zero(7, 1);
     Eigen::Matrix<double, 6, 1> O_F_ext_hat_K_M = Eigen::MatrixXd::Zero(6,1);
-    Eigen::Matrix<double, 7, 1> q_;
-    Eigen::Matrix<double, 7, 1> dq_;
-    Eigen::Matrix<double, 7, 1> dq_filtered;
+    Eigen::VectorXd q_;
+    Eigen::VectorXd dq_;
+    Eigen::VectorXd dq_filtered;
+    Eigen::MatrixXd M;
+    Eigen::MatrixXd jacobian;
     Eigen::MatrixXd jacobian_transpose_pinv;  
     Eigen::MatrixXd jacobian_pinv;
+    Eigen::VectorXd coriolis;
+
     
     // control input
     int control_mode; // either position control or velocity control
@@ -154,12 +153,18 @@ public:
     //Robot parameters
     const int num_joints = 7;
     const std::string state_interface_name_{"robot_state"};
+    const std::string robot_name_{"fr3"};
     std::string arm_id_{"fr3"};
     std::string robot_description_;
     const std::string k_robot_state_interface_name{"robot_state"};
     const std::string k_robot_model_interface_name{"robot_model"};
-    franka_hardware::FrankaHardwareInterface interfaceClass;
-    std::unique_ptr<franka_semantic_components::FrankaRobotModel> franka_robot_model_;
+
+    // URDF handling
+    pinocchio::Model model_;
+    pinocchio::Data data_;
+    int end_effector_frame_id_;
+
+
     const double delta_tau_max_{1.0};
     const double dt = 0.001;
     
@@ -187,12 +192,12 @@ public:
     Eigen::Matrix<double, 6, 6> Lambda = IDENTITY;                                           // operational space mass matrix
     Eigen::Matrix<double, 6, 6> Sm = IDENTITY;                                               // task space selection matrix for positions and rotation
     Eigen::Matrix<double, 6, 6> Sf = Eigen::MatrixXd::Zero(6, 6);                            // task space selection matrix for forces
-    Eigen::Matrix<double, 6, 6> K =  (Eigen::MatrixXd(6,6) << 250,   0,   0,   0,   0,   0,
-                                                                0, 250,   0,   0,   0,   0,
-                                                                0,   0, 250,   0,   0,   0,  // impedance stiffness term
+    Eigen::Matrix<double, 6, 6> K =  (Eigen::MatrixXd(6,6) << 200,   0,   0,   0,   0,   0,
+                                                                0, 200,   0,   0,   0,   0,
+                                                                0,   0, 200,   0,   0,   0,  // impedance stiffness term
                                                                 0,   0,   0,  10,   0,   0,
                                                                 0,   0,   0,   0,  10,   0,
-                                                                0,   0,   0,   0,   0,  8).finished(); // D will be initialized as critically damped
+                                                                0,   0,   0,   0,   0,  10).finished(); // D will be initialized as critically damped
 
     Eigen::Matrix<double, 6, 6> D; //  Will be initialized as critically damped  in constructor 
 
@@ -235,7 +240,7 @@ public:
 
     Eigen::Vector3d position_d_;
     Eigen::Quaterniond orientation_d_;
-    Eigen::Quaterniond x_d_orientation_quat; //orientation quaternion of virtual spring system
+    Eigen::Quaterniond x_d_orientation_quat_; //orientation quaternion of virtual spring system
 
     // Force control
     Eigen::Matrix<double, 6, 1> F_contact_des = Eigen::MatrixXd::Zero(6, 1);                 // desired contact force
@@ -258,6 +263,7 @@ public:
     //Flags
     bool config_control = false;           // sets if we want to control the configuration of the robot in nullspace
     bool do_logging = false;               // set if we do log values
+    bool first_valid_joint_state_received_ = false;  // delay Lambda computation until valid joint state
 
     //Filter-parameters
     double filter_params_{0.001};

@@ -87,7 +87,6 @@ public:
     //robot description
     rclcpp::Subscription<std_msgs::msg::String>::SharedPtr robot_description_sub_;
     std::promise<std::string> robot_description_promise_;
-    //rclcpp::Subscription<franka_msgs::msg::FrankaRobotState>::SharedPtr franka_state_subscriber = nullptr;
     rclcpp::Service<messages_fr3::srv::SetPose>::SharedPtr pose_srv_;
     const int num_joints = 7;
     const std::string robot_name_{"fr3"};
@@ -113,7 +112,7 @@ public:
     Eigen::Matrix<double, 6, 1> O_F_ext_hat_K_M = Eigen::MatrixXd::Zero(6,1);
     Eigen::VectorXd q_;
     Eigen::VectorXd dq_;
-    Eigen::MatrixXd jacobian_transpose_pinv;  
+    Eigen::MatrixXd jacobian_transpose_pinv;
     Eigen::MatrixXd M;
     Eigen::VectorXd coriolis;
     Eigen::MatrixXd jacobian;

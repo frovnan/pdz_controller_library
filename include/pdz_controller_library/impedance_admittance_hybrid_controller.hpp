@@ -27,7 +27,6 @@
 #include <chrono>      
 #include <vector>
 
-
 #include "pdz_controller_library/user_input_server.hpp"
 
 #include <rclcpp/rclcpp.hpp>
@@ -39,20 +38,17 @@
 
 #include <controller_interface/controller_interface.hpp>
 
-#include <franka/model.h>
-#include <franka/robot.h>
-#include <franka/robot_state.h>
-
-#include "franka_hardware/franka_hardware_interface.hpp"
-#include <franka_hardware/model.hpp>
-
 #include "franka_msgs/msg/franka_robot_state.hpp"
 #include "franka_msgs/msg/errors.hpp"
 #include "messages_fr3/srv/set_pose.hpp"
+#include <std_msgs/msg/string.hpp>
 
-#include "franka_semantic_components/franka_robot_model.hpp"
-#include "franka_semantic_components/franka_robot_state.hpp"
-#include "geometry_msgs/msg/point.hpp"
+#include <pinocchio/parsers/urdf.hpp>
+#include <pinocchio/algorithm/kinematics.hpp>
+#include <pinocchio/algorithm/crba.hpp>
+#include <pinocchio/algorithm/rnea.hpp>
+#include <pinocchio/algorithm/frames.hpp>
+#include <pinocchio/algorithm/jacobian.hpp>
 
 
 #define IDENTITY Eigen::MatrixXd::Identity(6, 6)
@@ -98,7 +94,6 @@ ImpedanceAdmittanceHybridController();
 
  private:
     //Nodes
-    rclcpp::Subscription<franka_msgs::msg::FrankaRobotState>::SharedPtr franka_state_subscriber = nullptr;
     rclcpp::Service<messages_fr3::srv::SetPose>::SharedPtr pose_srv_;
     rclcpp::Subscription<geometry_msgs::msg::Pose>::SharedPtr desired_pose_sub;
 
@@ -133,20 +128,28 @@ ImpedanceAdmittanceHybridController();
     Eigen::Matrix<double, 7, 1> q_subscribed_M;
     Eigen::Matrix<double, 7, 1> tau_J_d_M = Eigen::MatrixXd::Zero(7, 1);
     Eigen::Matrix<double, 6, 1> O_F_ext_hat_K_M = Eigen::MatrixXd::Zero(6,1);
-    Eigen::Matrix<double, 7, 1> q_;
-    Eigen::Matrix<double, 7, 1> dq_;
-    Eigen::MatrixXd jacobian_transpose_pinv; 
-    Eigen::Matrix<double, 6, 7> jacobian; 
+    Eigen::VectorXd q_;
+    Eigen::VectorXd dq_;
+    Eigen::MatrixXd jacobian_transpose_pinv;  
+    Eigen::MatrixXd M;
+    Eigen::VectorXd coriolis;
+    Eigen::MatrixXd jacobian;
 
 
     //Robot parameters
     const int num_joints = 7;
     const std::string state_interface_name_{"robot_state"};
     const std::string arm_id_{"fr3"};
+    const std::string robot_name_{"fr3"};
     const std::string k_robot_state_interface_name{"robot_state"};
     const std::string k_robot_model_interface_name{"robot_model"};
-    franka_hardware::FrankaHardwareInterface interfaceClass;
-    std::unique_ptr<franka_semantic_components::FrankaRobotModel> franka_robot_model_;
+
+    // The URDF (Unified Robot Description Format) file describes the robot's structure, including its links, joints, and physical properties.
+    pinocchio::Model model_;
+    pinocchio::Data data_;
+    // std::string urdf_path_ = "/home/matteo/franka_ros2_ws/src/franka_description/robots/fr3/fr3.urdf"; // Path to your robot's URDF file
+    int end_effector_frame_id_; // Frame ID for the end-effector
+
     const double delta_tau_max_{1.0};
     const double dt = 0.001;
                 
@@ -196,12 +199,12 @@ ImpedanceAdmittanceHybridController();
     Eigen::Matrix<double, 6, 6> cartesian_stiffness_target_;                                 // impedance damping term
     Eigen::Matrix<double, 6, 6> cartesian_damping_target_;                                   // impedance damping term
     Eigen::Matrix<double, 6, 6> cartesian_inertia_target_;                                   // impedance damping term
-    Eigen::Vector3d position_d_target_ = {0.5, 0.0, 0.5};
+    Eigen::Vector3d position_d_target_ = {0.3, 0.0, 0.5};
     Eigen::Vector3d rotation_d_target_ = {M_PI, 0.0, 0.0};
     Eigen::Quaterniond orientation_d_target_;
     Eigen::Vector3d position_d_;
     Eigen::Quaterniond orientation_d_; 
-    Eigen::Quaterniond x_d_orientation_quat; //orientation quaternion of virtual spring system
+    Eigen::Quaterniond x_d_orientation_quat_; //orientation quaternion of virtual spring system
     Eigen::Matrix<double, 6, 1> F_output;   
     Eigen::Matrix<double, 6, 1> F_contact_des = Eigen::MatrixXd::Zero(6, 1);                 // desired contact force
     Eigen::Matrix<double, 6, 1> F_contact_target = Eigen::MatrixXd::Zero(6, 1);              // desired contact force used for filtering
@@ -321,7 +324,6 @@ ImpedanceAdmittanceHybridController();
     int counter_ ;  //counter for the whole sys， to calculate env stiffness and n
     int counter = 0; // counter for the update loop
     std::vector<double> dynamic_n;
-    std::string filename = "output.txt";
 
 
     int counter_smooth = 0; // for the smooth change bet. imp and adm, not used
@@ -350,7 +352,7 @@ ImpedanceAdmittanceHybridController();
     
     bool schmitt_adm = true;
 
-  
+    bool first_valid_joint_state_received_ = false;  // delay Lambda computation until valid joint state
 
 };
 }  // namespace pdz_controller_library
