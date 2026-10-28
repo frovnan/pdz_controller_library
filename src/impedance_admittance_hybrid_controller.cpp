@@ -376,6 +376,9 @@ CallbackReturn ImpedanceAdmittanceHybridController::on_activate(const rclcpp_lif
   transform.translation() = data_.oMf[end_effector_frame_id_].translation();  // Extract translation
   position_d_ = transform.translation();
   orientation_d_ = Eigen::Quaterniond(transform.rotation());
+  x_d.head(3) = position_d_target_;
+  x_d.tail(3) = rotation_d_target_;
+  x_dot_d.setZero();
   std::cout << "Completed Activation process" << std::endl;
   return CallbackReturn::SUCCESS;
 }
@@ -819,11 +822,22 @@ controller_interface::return_type ImpedanceAdmittanceHybridController::update(co
     std::cout << "Lambda: " << std::endl;
     std::cout << Lambda.topLeftCorner(6,6) << std::endl;
 
-    std::cout << "torques: " << tau_d.transpose() << std::endl;
+    std::cout << "impedance torques: " << tau_impedance.transpose() << std::endl;
+    std::cout << "nullspace torques: " << tau_nullspace.transpose() << std::endl;
+    std::cout << "coriolis torques: " << coriolis.transpose() << std::endl;
+    std::cout << "friction torques: " << tau_friction.transpose() << std::endl;
+    std::cout << "total torques: " << tau_d.transpose() << std::endl;
 
+    std::cout << "desired position: " << position_d_.transpose() << std::endl;
+    std::cout << "desired orientation: " << orientation_d_ << std::endl;
+    std::cout << "virtual acceleration: " << x_ddot_d.transpose() << std::endl;
+    std::cout << "virtual velocity: " << x_dot_d.transpose() << std::endl;
+    std::cout << "virtual position: " << x_d.transpose() << std::endl;
+    std::cout << "virtual orientation: " << x_d_orientation_quat_ << std::endl;
     std::cout << "position: " << position.transpose() << std::endl;
     std::cout << "orientation: " << orientation << std::endl;
-    std::cout << "error: " << error.transpose() << std::endl;
+    std::cout << "velocity: " << w.transpose() << std::endl;
+    std::cout << "position error is: " << error.head(3).transpose() << std::endl;
 
     std::cout << "joint positions: " << q_.transpose() << std::endl;
     std::cout << "joint velocities: " << dq_.transpose() << std::endl;

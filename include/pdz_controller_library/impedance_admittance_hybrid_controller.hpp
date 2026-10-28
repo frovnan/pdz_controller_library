@@ -166,12 +166,12 @@ ImpedanceAdmittanceHybridController();
 
     Eigen::Matrix<double, 6, 6> D =  Eigen::MatrixXd(6,6) ;// impedance damping term
 
-    Eigen::Matrix<double, 6, 6> K_imp = (Eigen::MatrixXd(6,6) << 800,   0,   0,   0,   0,   0,
-                                                                0, 800,   0,   0,   0,   0,
-                                                                0,   0, 800,   0,   0,   0,  // impedance stiffness term
-                                                                0,   0,   0, 80,   0,   0,
-                                                                0,   0,   0,   0, 80,   0,
-                                                                0,   0,   0,   0,   0,  18).finished() ;
+    Eigen::Matrix<double, 6, 6> K_imp = (Eigen::MatrixXd(6,6) << 200,   0,   0,   0,   0,   0,
+                                                                0, 200,   0,   0,   0,   0,
+                                                                0,   0, 200,   0,   0,   0,  // impedance stiffness term
+                                                                0,   0,   0, 10,   0,   0,
+                                                                0,   0,   0,   0, 10,   0,
+                                                                0,   0,   0,   0,   0,  10).finished() ;
 
                                                       
 
@@ -221,12 +221,12 @@ ImpedanceAdmittanceHybridController();
     Eigen::Matrix<double, 6, 6> Kd; //  Will be initialized as critically damped  in constructor  
     double elapsed_time = 1;
     double Kp_multiplier = 1;
-    Eigen::Matrix<double, 6, 6> Kp = (Eigen::MatrixXd(6,6) << 2000,   0,   0,   0,   0,   0,
-                                                                0, 2000,   0,   0,   0,   0,
-                                                                0,   0, 2000,   0,   0,   0,  // Inner Position Loop Controller Gains
-                                                                0,   0,   0,  50,   0,   0,
-                                                                0,   0,   0,   0,  50,   0,
-                                                                0,   0,   0,   0,   0,  15).finished();
+    Eigen::Matrix<double, 6, 6> Kp = (Eigen::MatrixXd(6,6) << 200,   0,   0,   0,   0,   0,
+                                                                0, 200,   0,   0,   0,   0,
+                                                                0,   0, 200,   0,   0,   0,  // Inner Position Loop Controller Gains
+                                                                0,   0,   0,  10,   0,   0,
+                                                                0,   0,   0,   0,  10,   0,
+                                                                0,   0,   0,   0,   0,  10).finished();
 
                                                                     // position and velocity outer controlle reference
     Eigen::Matrix<double, 6, 1> x_ddot_d;

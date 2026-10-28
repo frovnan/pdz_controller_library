@@ -258,6 +258,10 @@ CallbackReturn AdmittanceController::on_activate(const rclcpp_lifecycle::State& 
   transform.translation() = data_.oMf[end_effector_frame_id_].translation();  // Extract translation
   position_d_ = transform.translation();
   orientation_d_ = Eigen::Quaterniond(transform.rotation());
+  x_d.head(3) = position_d_target_;
+  x_d.tail(3) = rotation_d_target_;
+  x_dot_d.setZero();
+  //x_d_orientation_quat_ = orientation_d_target_.normalized();
   std::cout << "Completed Activation process" << std::endl;
   return CallbackReturn::SUCCESS;
 }
@@ -352,6 +356,7 @@ controller_interface::return_type AdmittanceController::update(const rclcpp::Tim
 
   Eigen::VectorXd dynamic_torques = pinocchio::rnea(model_, data_, q_,  dq_, Eigen::VectorXd::Zero(model_.nv)); // 
   M = pinocchio::crba(model_, data_, q_); // rigid body algorithm
+  M.triangularView<Eigen::StrictlyLower>() = M.transpose().triangularView<Eigen::StrictlyLower>(); // ensure M is symmetric
   pinocchio::computeFrameJacobian(model_, data_, q_, end_effector_frame_id_, pinocchio::LOCAL_WORLD_ALIGNED, jacobian);
   pinocchio::forwardKinematics(model_, data_, q_);
   pinocchio::updateFramePlacements(model_, data_);
@@ -373,10 +378,12 @@ controller_interface::return_type AdmittanceController::update(const rclcpp::Tim
   Eigen::Vector3d position(transform.translation());
   Eigen::Quaterniond orientation(transform.rotation());
 
+  /*
   //Force Updates
   F_ext = 0.001 * F_ext + 0.999 * O_F_ext_hat_K_M; // noFiltering
   F_ext.head(3) = -F_ext.head(3);
-  
+  */
+
   Eigen::Matrix<double, 6, 1> virtual_error = Eigen::MatrixXd::Zero(6, 1); 
   //std::cout << "Error outer loop is: " << error.transpose() <<  std::endl;
   // Now, align error.tail(3) to use virtual_error like position error
@@ -385,9 +392,9 @@ controller_interface::return_type AdmittanceController::update(const rclcpp::Tim
  
 
   // Convert x_d.tail(3) (Euler angles) to a quaternion
-  x_d_orientation_quat_ = Eigen::AngleAxisd(x_d.tail(3)(0), Eigen::Vector3d::UnitX())
-                        * Eigen::AngleAxisd(x_d.tail(3)(1), Eigen::Vector3d::UnitY())
-                        * Eigen::AngleAxisd(x_d.tail(3)(2), Eigen::Vector3d::UnitZ());
+  x_d_orientation_quat_ = Eigen::AngleAxisd(rotation_d_target_[0], Eigen::Vector3d::UnitX())
+                        * Eigen::AngleAxisd(rotation_d_target_[1], Eigen::Vector3d::UnitY())
+                        * Eigen::AngleAxisd(rotation_d_target_[2], Eigen::Vector3d::UnitZ());
 
   // Ensure the quaternions are in the same hemisphere
   if (orientation_d_.coeffs().dot(x_d_orientation_quat_.coeffs()) < 0.0) {
@@ -402,8 +409,8 @@ controller_interface::return_type AdmittanceController::update(const rclcpp::Tim
 
   //virtual_error.tail(3) = -x_d_orientation_quat_.toRotationMatrix() * virtual_error_quat.vec(); // vec for rotational part
   virtual_error.head(3) = x_d.head(3) - position_d_; //linear error
-  // Calculate the desired acceleration using the impedance control laws (for oriquentation part only)
-  x_ddot_d = Lambda.inverse() * (0 * F_ext - D * x_dot_d - K * virtual_error);
+  // Calculate the desired acceleration using the impedance control laws (for orientation part only)
+  x_ddot_d = Lambda.inverse() * (/*0 * F_ext*/ - D * x_dot_d - K * virtual_error);
   // Integrate once to get velocities
   x_dot_d += x_ddot_d * dt;
   // Calculate the angle and axis for the quaternion rotation
@@ -471,8 +478,8 @@ controller_interface::return_type AdmittanceController::update(const rclcpp::Tim
 
   calculate_tau_friction(); //Gets friction forces for current state
   tau_admittance = jacobian.topLeftCorner(6,7).transpose() * Sm * (F_admittance /*+ F_repulsion + F_potential*/);
-  auto tau_total = (tau_admittance + tau_nullspace + coriolis + tau_friction /*+ gravity*/); //add nullspace, coriolis, and gravity components to desired torque
-  tau_d << tau_total;
+  auto tau_total = (tau_admittance + tau_nullspace + coriolis /*+ gravity*/); //add nullspace, coriolis, and gravity components to desired torque
+  tau_d = tau_total;
   tau_d << saturateTorqueRate(tau_d, tau_J_d_M);  // Saturate torque rate to avoid discontinuities
   tau_J_d_M = tau_d;
 
@@ -488,7 +495,11 @@ controller_interface::return_type AdmittanceController::update(const rclcpp::Tim
     //std::cout << O_F_ext_hat_K << std::endl;
     //std::cout << O_F_ext_hat_K_M << std::endl;
     //std::cout << Lambda*Theta.inverse() << std::endl;
-    std::cout << "torques: " << tau_d.transpose() << std::endl;
+    std::cout << "admittance torques: " << tau_admittance.transpose() << std::endl;
+    std::cout << "nullspace torques: " << tau_nullspace.transpose() << std::endl;
+    std::cout << "coriolis torques: " << coriolis.transpose() << std::endl;
+    std::cout << "friction torques: " << tau_friction.transpose() << std::endl;
+    std::cout << "total torques: " << tau_d.transpose() << std::endl;
     //std::cout << "--------" << std::endl;
     //std::cout << tau_nullspace << std::endl;
     //std::cout << "--------" << std::endl;
@@ -510,9 +521,16 @@ controller_interface::return_type AdmittanceController::update(const rclcpp::Tim
     
     //std::cout << "Error quaternion: " << error_quaternion.coeffs().transpose() << std::endl;
     std::cout << "joint positions: " << q_.transpose() << std::endl;
+    std::cout << "desired position: " << position_d_.transpose() << std::endl;
+    std::cout << "desired orientation: " << orientation_d_ << std::endl;
+    std::cout << "virtual acceleration: " << x_ddot_d.transpose() << std::endl;
+    std::cout << "virtual velocity: " << x_dot_d.transpose() << std::endl;
+    std::cout << "virtual position: " << x_d.transpose() << std::endl;
+    std::cout << "virtual orientation: " << x_d_orientation_quat_ << std::endl;
     std::cout << "position: " << position.transpose() << std::endl;
     std::cout << "orientation: " << orientation << std::endl;
-    std::cout << "position error is: " << error.head(3).transpose() <<  std::endl;
+    std::cout << "velocity: " << w.transpose() << std::endl;
+    std::cout << "position error is: " << error.head(3).transpose() << std::endl;
     //std::cout << "Elapsed time is: " << elapsed_time <<  std::endl;
     //std::cout << "Desired Acceleration is: " << x_ddot_d.transpose() <<  std::endl;
     //std::cout << "Desired Velocity is: " << x_dot_d.transpose() <<  std::endl;

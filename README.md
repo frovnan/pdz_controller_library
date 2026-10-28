@@ -11,7 +11,7 @@ These include:
 * Joint Impedance Control
 * [Hybrid Force/Impedance Contol](https://github.com/krombier/Bachelor_Thesis_Force_Control)
 * [Hybrid Impedance/Admittance Control](https://github.com/enjoyericbu/hybridcontroller)
-* [Riemann Motion Policy](https://github.com/MatteoBodmer/riemannian_motion_policy_mb)
+* [Riemannian Motion Policy](https://github.com/MatteoBodmer/riemannian_motion_policy_mb)
 * [Singularity and Oscillation Avoidance](https://github.com/GeniusT31/src)
 
 The goal is to compare their trajectory-tracking performance.

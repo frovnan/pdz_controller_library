@@ -1012,7 +1012,7 @@ controller_interface::return_type RiemannianMotionPolicy::update(const rclcpp::T
   Eigen::MatrixXd JM_pinv = M.ldlt().solve(jacobian.transpose());
   Lambda = (jacobian * JM_pinv).ldlt().solve(Eigen::MatrixXd::Identity(6, 6)); // More efficient and numerically stable way to compute Lambda
   // correcting D to be critically damped
-  D_RMP = D_gain * K_RMP.cwiseMax(0.0).cwiseSqrt() * Lambda.cwiseMax(0.0).diagonal().cwiseSqrt().asDiagonal();
+  //D_RMP = D_gain * K_RMP.cwiseMax(0.0).cwiseSqrt() * Lambda.cwiseMax(0.0).diagonal().cwiseSqrt().asDiagonal();
   x_dd_des = (-K_RMP * (error) - D_RMP* jacobian * dq_);
   A_attract = calculate_target_attraction(error, jacobian);
 
