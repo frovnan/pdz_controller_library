@@ -251,7 +251,7 @@ def main():
         raise RuntimeError("No valid frequency-response points were fitted.")
 
     # Save numerical results for later controller comparisons.
-    csv_file = results_dir / "bode_results.csv"
+    csv_file = results_dir / f"{args.controller}_bode_results.csv"
     results.to_csv(csv_file, index=False)
     print(f"Saved numerical results to: {csv_file}")
 
@@ -319,7 +319,7 @@ def main():
     )
     fig.tight_layout(rect=[0, 0, 1, 0.97])
 
-    output_file = results_dir / "bode_all_dofs.png"
+    output_file = results_dir / f"{args.controller}_bode_all_dofs.png"
     fig.savefig(output_file, dpi=200, bbox_inches="tight")
 
     print(f"Saved plots to: {output_file}")

@@ -101,6 +101,7 @@ install(PROGRAMS
         scripts/plot_trajectory_data.py
         scripts/plot_frequency_data.py
         scripts/plot_bode_data.py
+        scripts/plot_bode_all_gains.py
         DESTINATION lib/${PROJECT_NAME})
 
 target_compile_definitions(${PROJECT_NAME} PUBLIC

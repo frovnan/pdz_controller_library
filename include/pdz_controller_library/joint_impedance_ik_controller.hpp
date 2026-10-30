@@ -154,12 +154,12 @@ class JointImpedanceIkController : public controller_interface::ControllerInterf
 */
   Eigen::MatrixXd M;
   Eigen::Matrix<double, 6, 6> Lambda = IDENTITY;
-  Eigen::Matrix<double, 6, 6> K_cartesian_desired = (Eigen::MatrixXd(6,6) << 2500,   0,   0,   0,   0,   0,
-                                                                               0, 2500,   0,   0,   0,   0,
-                                                                               0,   0, 2500,   0,   0,   0,  // impedance stiffness term
-                                                                               0,   0,   0,  100,   0,   0,
-                                                                               0,   0,   0,   0,  100,   0,
-                                                                               0,   0,   0,   0,   0,  100).finished();
+  Eigen::Matrix<double, 6, 6> K_cartesian_desired = (Eigen::MatrixXd(6,6) << 1000,   0,   0,   0,   0,   0,
+                                                                               0, 1000,   0,   0,   0,   0,
+                                                                               0,   0, 1000,   0,   0,   0,  // impedance stiffness term
+                                                                               0,   0,   0,  50,   0,   0,
+                                                                               0,   0,   0,   0,  50,   0,
+                                                                               0,   0,   0,   0,   0,  50).finished();
 
   Eigen::Matrix<double, 6, 6> D_cartesian_desired = (Eigen::MatrixXd(6,6) <<  100,    0,   0,   0,   0,   0,
                                                                                 0,  100,   0,   0,   0,   0,
@@ -192,6 +192,7 @@ class JointImpedanceIkController : public controller_interface::ControllerInterf
   Eigen::VectorXd q_;
   Eigen::VectorXd dq_;
   Vector7d dq_filtered;
+
   //Vector7d k_gains_ = {85.0, 135.0, 90.0, 90.0, 15.0, 8.0, 3.0}; //random
   //Vector7d d_gains_ {14.0, 23.0, 18.0, 18.0, 2.5, 1.8, 0.8};
 

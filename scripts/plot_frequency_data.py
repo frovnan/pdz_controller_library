@@ -119,7 +119,7 @@ def main():
     )
     fig.tight_layout()
 
-    output_file = results_dir / "frequency_sweep_all_dofs.png"
+    output_file = results_dir / f"{args.controller}_frequency_sweep_all_dofs.png"
     fig.savefig(output_file, dpi=200, bbox_inches="tight")
 
     print(f"Saved plot to: {output_file}")
