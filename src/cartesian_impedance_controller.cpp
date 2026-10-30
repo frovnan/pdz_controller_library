@@ -249,7 +249,6 @@ CallbackReturn CartesianImpedanceController::on_activate(const rclcpp_lifecycle:
 // on_deactivate
 // ---------------------------------------------------------------------------
 controller_interface::CallbackReturn CartesianImpedanceController::on_deactivate(const rclcpp_lifecycle::State& /*previous_state*/) {
-  // franka_robot_model_->release_interfaces();
   RCLCPP_INFO(get_node()->get_logger(), "Controller deactivated.");
   return CallbackReturn::SUCCESS;
 }

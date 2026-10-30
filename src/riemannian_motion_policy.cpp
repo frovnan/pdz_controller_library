@@ -125,7 +125,7 @@ Eigen::MatrixXd RiemannianMotionPolicy::calculate_target_attraction(const Eigen:
   // std::cout << "error_position:\n" << error_position << std::endl;
   //axis metric
   Eigen::Matrix3d A_orientation = Eigen::Matrix3d::Zero();
-  double beta_axis = exp((-1 * std::pow(error_position.norm(), 2)) / (2*sigma_o));
+  double beta_axis = exp((-1 * std::pow(error_orientation.norm(), 2)) / (2*sigma_o));
   A_orientation = (beta_axis * b_axis + 1 - beta_axis) * Eigen::Matrix3d::Identity();
   A_attract.bottomRightCorner(3, 3) = A_orientation;
   
@@ -392,9 +392,19 @@ void RiemannianMotionPolicy::get_ddq(){
     f_total += jacobianEE_obstacle.block(0, 7 * i, 6, 7).transpose() * A_obs_tildeEE.block(0, 6 * i, 6, 6) * f_obs_tildeEE.col(i);
   }
   
-  A_total += A_joint_limits_upper + A_joint_limits_lower + A_joint_velocity + A_c_space_target + jacobian.transpose() * A_attract * jacobian + jacobian.transpose() * A_dampingEE * jacobian; 
-  f_total += A_joint_limits_upper * f_joint_limits_upper + A_joint_limits_lower * f_joint_limits_lower + 
-             A_joint_velocity * f_joint_velocity + A_c_space_target * f_c_space_target + jacobian.transpose() * A_attract * x_dd_des + jacobian.transpose() *A_dampingEE *f_dampingEE;
+  A_total += A_joint_limits_upper 
+           + A_joint_limits_lower 
+           + A_joint_velocity 
+           + A_c_space_target 
+           + jacobian.transpose() * A_attract * jacobian 
+           + jacobian.transpose() * A_dampingEE * jacobian; 
+
+  f_total += A_joint_limits_upper * f_joint_limits_upper 
+           + A_joint_limits_lower * f_joint_limits_lower 
+           + A_joint_velocity * f_joint_velocity 
+           + A_c_space_target * f_c_space_target 
+           + jacobian.transpose() * A_attract * x_dd_des 
+           + jacobian.transpose() * A_dampingEE * f_dampingEE;
   
   // Debugging prints for A_total and f_total
   // std::cout << "=== Debugging get_ddq() ===" << std::endl;
@@ -929,6 +939,8 @@ void RiemannianMotionPolicy::updateJointStates() {
 // update
 // ---------------------------------------------------------------------------
 controller_interface::return_type RiemannianMotionPolicy::update(const rclcpp::Time& /*time*/, const rclcpp::Duration& /*period*/) {  
+  updateJointStates();
+
   if (outcounter == 0) {
     std::cout << "Starting update loop..." << std::endl;
   }
@@ -959,7 +971,9 @@ controller_interface::return_type RiemannianMotionPolicy::update(const rclcpp::T
   orientation_d_target_ = Eigen::AngleAxisd(rotation_d_target_[0], Eigen::Vector3d::UnitX())
                         * Eigen::AngleAxisd(rotation_d_target_[1], Eigen::Vector3d::UnitY())
                         * Eigen::AngleAxisd(rotation_d_target_[2], Eigen::Vector3d::UnitZ());
-  updateJointStates(); 
+  
+  orientation.normalize();
+  orientation_d_target_.normalize();
 
   
   error.head(3) << position - position_d_;
@@ -1007,13 +1021,15 @@ controller_interface::return_type RiemannianMotionPolicy::update(const rclcpp::T
   //d_obs1 = calculateNearestPointOnSphere(position, sphere_center, sphere_radius);
   //d_obs1 = d_obs_prev1 * 0.99 + d_obs1 * 0.01;
 
-  // Lambda = (jacobian * M.inverse() * jacobian.transpose()).inverse();
+  double damping = 1e-6;
   M.triangularView<Eigen::StrictlyLower>() = M.transpose().triangularView<Eigen::StrictlyLower>(); // Ensure M is symmetric
-  Eigen::MatrixXd JM_pinv = M.ldlt().solve(jacobian.transpose());
-  Lambda = (jacobian * JM_pinv).ldlt().solve(Eigen::MatrixXd::Identity(6, 6)); // More efficient and numerically stable way to compute Lambda
+  Lambda = (jacobian.topLeftCorner(6,7) * M.topLeftCorner(7,7).inverse() * jacobian.topLeftCorner(6,7).transpose() + damping * IDENTITY).inverse();
+
+  //Eigen::MatrixXd JM_pinv = M.ldlt().solve(jacobian.transpose());
+  //Lambda = (jacobian * JM_pinv).ldlt().solve(Eigen::MatrixXd::Identity(6, 6)); // More efficient and numerically stable way to compute Lambda
   // correcting D to be critically damped
   //D_RMP = D_gain * K_RMP.cwiseMax(0.0).cwiseSqrt() * Lambda.cwiseMax(0.0).diagonal().cwiseSqrt().asDiagonal();
-  x_dd_des = (-K_RMP * (error) - D_RMP* jacobian * dq_);
+  x_dd_des = (-K_RMP * (error) - D_RMP * jacobian * dq_);
   A_attract = calculate_target_attraction(error, jacobian);
 
   // Debugging printouts for x_dd_des and its components
@@ -1139,13 +1155,22 @@ controller_interface::return_type RiemannianMotionPolicy::update(const rclcpp::T
   // std::cout << outcounter << std::endl;
   if (outcounter % 1000 == 0) { // Log periodically
     std::cout << "=== Debugging Information ===" << std::endl;
-    std::cout << "ddq_: " << ddq_.transpose() << std::endl;
-    std::cout << "position: " << position.transpose() << std::endl;
-    std::cout << "orientation: " << orientation << std::endl;
+    std::cout << "jacobian: " << std::endl;
+    std::cout << jacobian.topLeftCorner(6,7) << std::endl;
+
+    std::cout << "EE position: " << position.transpose() << std::endl;
+    std::cout << "EE orientation: " << orientation << std::endl;
+    std::cout << "desired EE position: " << position_d_.transpose() << std::endl;
+    std::cout << "desired EE orientation: " << orientation_d_ << std::endl;
+
     std::cout << "pose error: " << error.transpose() << std::endl;
-    std::cout << "tau_d: " << tau_d.transpose() << std::endl;
+
     std::cout << "gravity torques: " << g.transpose() << std::endl;
     std::cout << "coriolis torques: " << coriolis.transpose() << std::endl;
+    std::cout << "friction torques: " << tau_friction.transpose() << std::endl;
+    std::cout << "RMP torques: " << tau_RMP.transpose() << std::endl;
+    std::cout << "total torques: " << tau_d.transpose() << std::endl;
+  
     std::cout << "K gains: " << K_RMP.diagonal().transpose() << std::endl;
     std::cout << "D gains: " << D_RMP.diagonal().transpose() << std::endl;
     //std::cout << "mass matrix: \n" << M << std::endl;

@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <pdz_controller_library/default_robot_behavior_utils.hpp>
 #include <pdz_controller_library/joint_impedance_ik_controller.hpp>
+#include <pdz_controller_library/robot_utils.hpp>
 
 #include <cassert>
 #include <cmath>
@@ -322,9 +322,13 @@ controller_interface::return_type JointImpedanceIkController::update(
   transform.translation() = data_.oMf[end_effector_frame_id_].translation();  // Extract translation
   position_model = transform.translation();   // update the existing Vector3d
   orientation_model = Eigen::Quaterniond(transform.rotation());  // update the existing Quaterniond
+  orientation_d_target_ = Eigen::AngleAxisd(rotation_d_target_[0], Eigen::Vector3d::UnitX())
+                        * Eigen::AngleAxisd(rotation_d_target_[1], Eigen::Vector3d::UnitY())
+                        * Eigen::AngleAxisd(rotation_d_target_[2], Eigen::Vector3d::UnitZ());
+  
   orientation_model.normalize(); // Ensure the quaternion is normalized
   orientation_d_.normalize(); // Ensure the desired orientation is normalized
-
+  orientation_d_target_.normalize();
 
   // --- error ---
   pinocchio::SE3 current_pose = data_.oMf[end_effector_frame_id_];
@@ -398,7 +402,10 @@ controller_interface::return_type JointImpedanceIkController::update(
 
   // tau_friction = tau_friction_external;
   auto tau_d_calculated = compute_torque_command(
-  joint_positions_desired_eigen, joint_positions_current_eigen, joint_velocities_current_eigen);  
+    joint_positions_desired_eigen, 
+    joint_positions_current_eigen, 
+    joint_velocities_current_eigen
+  );  
   
   if (!tau_d_calculated.allFinite()) {
     RCLCPP_ERROR(rclcpp::get_logger("joint_impedance_ik_controller"), "tau_d_calculated contains NaN!");
@@ -429,9 +436,9 @@ controller_interface::return_type JointImpedanceIkController::update(
     std::cout << "joint error: " << (joint_positions_desired_eigen - joint_positions_current_eigen).transpose() << std::endl;
     //std::cout << "equivalent stiffness: " << (jacobian.transpose() * K_cartesian_desired * jacobian).diagonal().transpose() << std::endl;
     std::cout << "EE position: " << position_model.transpose() << std::endl;
-    std::cout << "EE orientation: " << orientation_model.coeffs().transpose() << std::endl;
-    std::cout << "desired EE position: " << position_d_target_.transpose() << std::endl;
-    std::cout << "desired EE orientation: " << orientation_d_target_.coeffs().transpose() << std::endl;
+    std::cout << "EE orientation: " << orientation_model << std::endl;
+    std::cout << "desired EE position: " << position_d_.transpose() << std::endl;
+    std::cout << "desired EE orientation: " << orientation_d_ << std::endl;
     std::cout << "pose error: " << error.transpose() << std::endl;
     //std::cout << "dq_ik: " << dq_ik.transpose() << std::endl;
     //std::cout << "jacobian: " << std::endl << jacobian_7 << std::endl;

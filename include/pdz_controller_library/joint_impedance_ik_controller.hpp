@@ -192,8 +192,17 @@ class JointImpedanceIkController : public controller_interface::ControllerInterf
   Eigen::VectorXd q_;
   Eigen::VectorXd dq_;
   Vector7d dq_filtered;
-  //Vector7d k_gains_ = {85.0, 135.0, 90.0, 90.0, 15.0, 8.0, 3.0};
+  //Vector7d k_gains_ = {85.0, 135.0, 90.0, 90.0, 15.0, 8.0, 3.0}; //random
   //Vector7d d_gains_ {14.0, 23.0, 18.0, 18.0, 2.5, 1.8, 0.8};
+
+  //Vector7d k_gains_ = {35.0, 45.0, 45.0, 60.0, 10.0, 15.0, 3.0}; //low impedance
+  //Vector7d d_gains_ {8.0, 20.0, 10.0, 20.0, 2.0, 5.0, 1.0};
+
+  //Vector7d k_gains_ = {180.0, 230.0, 230.0, 285.0, 60.0, 70.0, 10.0}; //mid impedance
+  //Vector7d d_gains_ {20.0, 45.0, 25.0, 50.0, 5.0, 15.0, 2.0};
+
+  //Vector7d k_gains_ = {325.0, 395.0, 365.0, 705.0, 120.0, 150.0, 20.0}; //random
+  //Vector7d d_gains_ {20.0, 45.0, 25.0, 75.0, 6.5, 20.0, 5.0};
 
   // joint compliance
   Eigen::Matrix<double, 7, 7> K_joint =  (Eigen::MatrixXd(7,7) << 85,   0,   0,   0,   0,   0,  0,

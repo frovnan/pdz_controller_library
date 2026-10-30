@@ -256,6 +256,14 @@ bool TrajectorySelector::solve_ik(const CartesianPose& desired_pose, Eigen::Vect
         Eigen::Matrix<double, 7, 1> dq = J_pinv * error;
 
         q.head<7>() += step_size * dq;
+        for (int i = 0; i < 7; ++i)
+        {
+            if (q[i] < model_.lowerPositionLimit[i] ||
+                q[i] > model_.upperPositionLimit[i])
+            {
+                return false;
+            }
+        }
     }
 
     return false;

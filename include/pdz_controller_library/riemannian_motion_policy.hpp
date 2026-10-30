@@ -249,12 +249,12 @@ public:
     
     Eigen::Matrix<double, 7, 1> ddq_;
     Eigen::Matrix<double, 7, 1> tau_RMP;
-    Eigen::Matrix<double, 6, 6> K_RMP =  (Eigen::MatrixXd(6,6) << 200,   0,   0,   0,   0,   0,
-                                                                    0, 200,   0,   0,   0,   0,
-                                                                    0,   0, 200,   0,   0,   0,  
-                                                                    0,   0,   0,  10,   0,   0,
-                                                                    0,   0,   0,   0,  10,   0,
-                                                                    0,   0,   0,   0,   0,  10).finished();
+    Eigen::Matrix<double, 6, 6> K_RMP =  (Eigen::MatrixXd(6,6) << 2500,   0,   0,   0,   0,   0,
+                                                                    0, 2500,   0,   0,   0,   0,
+                                                                    0,   0, 2500,   0,   0,   0,  
+                                                                    0,   0,   0,  100,   0,   0,
+                                                                    0,   0,   0,   0,  100,   0,
+                                                                    0,   0,   0,   0,   0,  100).finished();
 
     Eigen::Matrix<double, 6, 6> D_RMP =  (Eigen::MatrixXd(6,6) <<  30,   0,   0,   0,   0,   0,
                                                                     0,  30,   0,   0,   0,   0,
