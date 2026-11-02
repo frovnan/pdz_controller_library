@@ -340,6 +340,7 @@ int main(int argc, char **argv) {
 
                                 double angle = 2.0 * std::acos(std::clamp(std::abs(q_error.w()), 0.0, 1.0));
 
+                                std::cout << "distance to next pose: " << (poses[i].position - poses[i-1].position).norm() << " meters" << std::endl;
                                 std::cout << "shortest rotation angle to next pose: " << angle * 180.0 / M_PI << " degrees" << std::endl;
                             }
                             std::cout << "---------------------------------------" << std::endl;

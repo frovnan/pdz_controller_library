@@ -336,7 +336,7 @@ ImpedanceAdmittanceHybridController();
 
 
     int counter_smooth = 0; // for the smooth change bet. imp and adm, not used
-    Eigen::Matrix<double, 6, 1> F_last;
+    Eigen::Matrix<double, 6, 1> F_last = Eigen::MatrixXd::Zero(6,1);
     Eigen::Matrix<double, 6, 1> F_impedance_new;
     Eigen::Matrix<double, 6, 1> delta_F_impedance;
     Eigen::Matrix<double, 6, 1> desired_F;

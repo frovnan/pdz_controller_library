@@ -79,8 +79,8 @@ Eigen::Vector3d TrajectorySelector::generate_position_with_constraints(
         // Generate a random position within the constrained region...
         new_position = generate_position();
     } while (
-        // ...that is within the specified distance from the previous position
-        std::abs((previous_position - new_position).norm() - target_distance) > tolerance &&
+        // ...that is within a certain distance from the previous position and does not come too close to the robot base
+        std::abs((previous_position - new_position).norm() - target_distance) > tolerance ||
         !segment_clear_of_base(previous_position, new_position)
     );
 
@@ -272,21 +272,8 @@ bool TrajectorySelector::solve_ik(const CartesianPose& desired_pose, Eigen::Vect
 
 double TrajectorySelector::manipulability(const Eigen::Matrix<double, 6, 7>& J)
 {
-    /*
-    Eigen::JacobiSVD<Eigen::Matrix<double, 6, 7>> svd(J, Eigen::ComputeThinU | Eigen::ComputeThinV);
-
-    double mu = 1.0;
-
-    for (int i = 0; i < 6; ++i)
-    {
-        mu *= svd.singularValues()(i);
-    }
-    */
-
     // Using the sqrt(det(J * J^T)) to compute manipulability, as proposed by Yoshikawa (1985)
-    double mu = std::sqrt((J * J.transpose()).determinant());
-
-    return mu;
+    return std::sqrt((J * J.transpose()).determinant());
 }
 
 

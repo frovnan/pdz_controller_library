@@ -140,22 +140,6 @@ void ImpedanceAdmittanceHybridController::calculating_n(){
 } //n = 1 => total admittance; n = 0 => total impedance
 
 
-/*
-// ---------------------------------------------------------------------------
-// write_to_file
-// ---------------------------------------------------------------------------
-void write_to_file(const std::string& filename, double value) { //output n and F_ext to external file
-    std::ofstream output_file(filename, std::ios::app);
-    if (!output_file) {
-        std::cerr << "Failed to open the file." << std::endl;
-        return;
-    }
-    output_file << value << std::endl;
-    output_file.close();
-}
-*/
-
-
 
 // ---------------------------------------------------------------------------
 // schmitt_trigger
@@ -376,6 +360,7 @@ CallbackReturn ImpedanceAdmittanceHybridController::on_activate(const rclcpp_lif
   transform.translation() = data_.oMf[end_effector_frame_id_].translation();  // Extract translation
   position_d_ = transform.translation();
   orientation_d_ = Eigen::Quaterniond(transform.rotation());
+  x_d_orientation_quat_ = orientation_d_;
   x_d.head(3) = position_d_target_;
   x_d.tail(3) = rotation_d_target_;
   x_dot_d.setZero();
@@ -421,8 +406,6 @@ void ImpedanceAdmittanceHybridController::reference_pose_callback(const geometry
     position_d_target_ << msg->position.x, msg->position.y, msg->position.z;
     orientation_d_target_.coeffs() << msg->orientation.x, msg->orientation.y, msg->orientation.z, msg->orientation.w;
     //orientation_d_target_.normalize();
-
-
 
 
     // You can add more processing logic here
@@ -522,8 +505,8 @@ controller_interface::return_type ImpedanceAdmittanceHybridController::update(co
   error.tail(3) << -transform.rotation() * error.tail(3);
 
   //Force Updates
-  F_ext = 0.9 * F_ext + 0.1 * O_F_ext_hat_K_M; // noFiltering
-  F_ext.head(3) = -F_ext.head(3);
+  //F_ext = 0.9 * F_ext + 0.1 * O_F_ext_hat_K_M; // noFiltering
+  //F_ext.head(3) = -F_ext.head(3);
 
  // Convert x_d.tail(3) (Euler angles) to a quaternion
   Eigen::Matrix<double, 6, 1> virtual_error = Eigen::MatrixXd::Zero(6, 1);
@@ -554,7 +537,7 @@ controller_interface::return_type ImpedanceAdmittanceHybridController::update(co
   virtual_error.head(3) = x_d.head(3) - position_d_; //linear erro
 
   //F_ext?
-  x_ddot_d = Lambda.inverse() * ( /*0 * */ F_ext - D * x_dot_d - K * virtual_error);
+  x_ddot_d = Lambda.inverse() * (/*0 * F_ext*/ - D * x_dot_d - K * virtual_error);
   // Integrate once to get velocities
   x_dot_d += x_ddot_d * dt;
   // Calculate the angle and axis for the quaternion rotation
@@ -797,22 +780,7 @@ controller_interface::return_type ImpedanceAdmittanceHybridController::update(co
   }
   
   if (outcounter % 1000 == 0){
-    std::cout << "------------------------------------------------------------------------------" << std::endl;
-    //std::cout << "loop_duration_imp [ms]: " << std::endl;
-    //std::cout << loop_duration_imp << std::endl;
-    //std::cout << "Target orientation: " << orientation_d_target_.toRotationMatrix().eulerAngles(0, 1, 2).transpose() << std::endl; //correct
-    //std::cout << "x_d rotation is: " << x_d_orientation_quat.toRotationMatrix().eulerAngles(0, 1, 2).transpose() <<  std::endl; //wrong
-    //std::cout << "Orientation virtual_error is: " << virtual_error.tail(3).transpose() <<  std::endl; //correct
-    //std::cout << "Orientation Error_pd is: " << error.tail(3).transpose() <<  std::endl; //correct
-    //std::cout << "Orientation_d_ is: " << orientation_d_.toRotationMatrix().eulerAngles(0, 1, 2).transpose() <<  std::endl;
-    //std::cout << "Orientation is: " << orientation.toRotationMatrix().eulerAngles(0, 1, 2).transpose() <<  std::endl;
-    //std::cout << "Current n is: " << n <<  std::endl;
-    //std::cout << "Current F_norm_current is: " << F_norm_current <<  std::endl;
-    //std::cout << "Current X_norm_current is: " << X_norm_current <<  std::endl;
-    //std::cout << "Current k_e is: " << k_e <<  std::endl;
-    //std::cout << "Current tau_impedance is: " << tau_impedance <<  std::endl;
-    //std::cout << "Current counter is: " << counter <<  std::endl;
-    //std::cout << "If impedance " << flag_imp <<  std::endl;   
+    std::cout << "------------------------------------------------------------------------------" << std::endl;   
     std::cout << "jacobian: " << std::endl;
     std::cout << jacobian.topLeftCorner(6,7) << std::endl; 
 
@@ -821,7 +789,8 @@ controller_interface::return_type ImpedanceAdmittanceHybridController::update(co
 
     std::cout << "Lambda: " << std::endl;
     std::cout << Lambda.topLeftCorner(6,6) << std::endl;
-
+    
+    std::cout << "F_output: " << F_output.transpose() << std::endl;
     std::cout << "impedance torques: " << tau_impedance.transpose() << std::endl;
     std::cout << "nullspace torques: " << tau_nullspace.transpose() << std::endl;
     std::cout << "coriolis torques: " << coriolis.transpose() << std::endl;
