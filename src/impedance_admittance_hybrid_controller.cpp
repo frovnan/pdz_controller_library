@@ -487,6 +487,7 @@ controller_interface::return_type ImpedanceAdmittanceHybridController::update(co
   }
   Theta = Lambda;
   D = 2.05 * K.cwiseSqrt() * Lambda.diagonal().cwiseSqrt().asDiagonal();
+  //Kd = 2.05 * Kp.cwiseSqrt() * Lambda.diagonal().cwiseSqrt().asDiagonal();
 
   w = jacobian * dq_;
 

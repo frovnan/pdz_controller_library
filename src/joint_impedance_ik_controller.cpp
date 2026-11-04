@@ -376,6 +376,7 @@ controller_interface::return_type JointImpedanceIkController::update(
   }
 
   M = pinocchio::crba(model_, data_, q_);
+  M.triangularView<Eigen::StrictlyLower>() = M.transpose().triangularView<Eigen::StrictlyLower>(); // ensure M is symmetric
   double damping = 1e-6;
   Lambda = (jacobian.topLeftCorner(6,7) * M.topLeftCorner(7,7).inverse() * jacobian.topLeftCorner(6,7).transpose() + damping * IDENTITY).inverse();
   // Find joint impedance gains equivalent to desired cartesian impedance gains K_q = J^T * K_x * J
@@ -443,8 +444,14 @@ controller_interface::return_type JointImpedanceIkController::update(
     //std::cout << "dq_ik: " << dq_ik.transpose() << std::endl;
     //std::cout << "jacobian: " << std::endl << jacobian_7 << std::endl;
     //std::cout << "jacobian pseudo-inverse: " << std::endl << jacobian_pinv << std::endl;
-    std::cout << "K gains: " << K_joint.diagonal().transpose() << std::endl;
-    std::cout << "D gains: " << D_joint.diagonal().transpose() << std::endl;
+    std::cout << "cartesian K gains: " << std::endl;
+    std::cout << K_cartesian_desired << std::endl;
+    std::cout << "cartesian D gains: " << std::endl;
+    std::cout << D_cartesian_desired << std::endl;
+    std::cout << "joint K gains: " << std::endl;
+    std::cout << K_joint << std::endl;
+    std::cout << "joint D gains: " << std::endl;
+    std::cout << D_joint << std::endl;
     std::cout << "-------------------------------------------------------------------------------------" << std::endl;
   }
   counter_++;

@@ -306,6 +306,7 @@ controller_interface::return_type CartesianImpedanceController::update(const rcl
   
   Eigen::VectorXd dynamic_torques = pinocchio::rnea(model_, data_, q_,  dq_, Eigen::VectorXd::Zero(model_.nv)); // 
   M = pinocchio::crba(model_, data_, q_); // rigid body algorithm
+  M.triangularView<Eigen::StrictlyLower>() = M.transpose().triangularView<Eigen::StrictlyLower>(); // ensure M is symmetric
   pinocchio::computeFrameJacobian(model_, data_, q_, end_effector_frame_id_, pinocchio::LOCAL_WORLD_ALIGNED, jacobian);
   pinocchio::forwardKinematics(model_, data_, q_);
   pinocchio::updateFramePlacements(model_, data_);

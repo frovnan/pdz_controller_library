@@ -368,9 +368,9 @@ controller_interface::return_type AdmittanceController::update(const rclcpp::Tim
 
   double damping = 1e-6;
   Lambda = (jacobian.topLeftCorner(6,7) * M.topLeftCorner(7,7).inverse() * jacobian.topLeftCorner(6,7).transpose() + damping * IDENTITY).inverse();
-  updateJointStates(); 
   Theta = Lambda;
   D = 2.05 * K.cwiseSqrt() * Lambda.diagonal().cwiseSqrt().asDiagonal(); // Admittance control law to compute desired trajectory
+  Kd = 2.05 * Kp.cwiseSqrt() * Lambda.diagonal().cwiseSqrt().asDiagonal(); // Admittance control law to compute desired trajectory
   w = jacobian * dq_; // cartesian velocity
   Eigen::Affine3d transform;
   transform.linear() = data_.oMf[end_effector_frame_id_].rotation();  // Extract rotation
@@ -378,6 +378,12 @@ controller_interface::return_type AdmittanceController::update(const rclcpp::Tim
   Eigen::Vector3d position(transform.translation());
   Eigen::Quaterniond orientation(transform.rotation());
 
+  orientation_d_target_ = Eigen::AngleAxisd(rotation_d_target_[0], Eigen::Vector3d::UnitX())
+                        * Eigen::AngleAxisd(rotation_d_target_[1], Eigen::Vector3d::UnitY())
+                        * Eigen::AngleAxisd(rotation_d_target_[2], Eigen::Vector3d::UnitZ());
+
+  orientation.normalize();
+  orientation_d_target_.normalize();
   /*
   //Force Updates
   F_ext = 0.001 * F_ext + 0.999 * O_F_ext_hat_K_M; // noFiltering
@@ -406,6 +412,7 @@ controller_interface::return_type AdmittanceController::update(const rclcpp::Tim
   // Transform the error into the desired orientation frame
   virtual_error.tail(3) << virtual_error_quat.x(), virtual_error_quat.y(), virtual_error_quat.z();
   virtual_error.tail(3) << -x_d_orientation_quat_.toRotationMatrix() * virtual_error.tail(3);
+  //virtual_error.tail(3) = pinocchio::log3(orientation_d_.toRotationMatrix().transpose() * x_d_orientation_quat_.toRotationMatrix());
 
   //virtual_error.tail(3) = -x_d_orientation_quat_.toRotationMatrix() * virtual_error_quat.vec(); // vec for rotational part
   virtual_error.head(3) = x_d.head(3) - position_d_; //linear error
@@ -478,8 +485,7 @@ controller_interface::return_type AdmittanceController::update(const rclcpp::Tim
 
   calculate_tau_friction(); //Gets friction forces for current state
   tau_admittance = jacobian.topLeftCorner(6,7).transpose() * Sm * (F_admittance /*+ F_repulsion + F_potential*/);
-  auto tau_total = (tau_admittance + tau_nullspace + coriolis /*+ gravity*/); //add nullspace, coriolis, and gravity components to desired torque
-  tau_d = tau_total;
+  tau_d = (tau_admittance + tau_nullspace + coriolis /*+ gravity*/); //add nullspace, coriolis, and gravity components to desired torque
   tau_d << saturateTorqueRate(tau_d, tau_J_d_M);  // Saturate torque rate to avoid discontinuities
   tau_J_d_M = tau_d;
 
@@ -494,24 +500,25 @@ controller_interface::return_type AdmittanceController::update(const rclcpp::Tim
     //std::cout << "F_ext_robot [N]" << std::endl;
     //std::cout << O_F_ext_hat_K << std::endl;
     //std::cout << O_F_ext_hat_K_M << std::endl;
-    //std::cout << Lambda*Theta.inverse() << std::endl;
+
     std::cout << "admittance torques: " << tau_admittance.transpose() << std::endl;
     std::cout << "nullspace torques: " << tau_nullspace.transpose() << std::endl;
     std::cout << "coriolis torques: " << coriolis.transpose() << std::endl;
     std::cout << "friction torques: " << tau_friction.transpose() << std::endl;
     std::cout << "total torques: " << tau_d.transpose() << std::endl;
-    //std::cout << "--------" << std::endl;
-    //std::cout << tau_nullspace << std::endl;
-    //std::cout << "--------" << std::endl;
-    //std::cout << "--------" << std::endl;
-    //std::cout << coriolis << std::endl;
-    //std::cout << "Inertia scaling [m]: " << std::endl;
-    //std::cout << T << std::endl;
     
     std::cout << "Lambda: " << std::endl;
     std::cout << Lambda << std::endl;
     std::cout << "jacobian: " << std::endl;
     std::cout << jacobian.topLeftCorner(6,7) << std::endl;
+    std::cout << "admittance stiffness: " << std::endl;
+    std::cout << K.diagonal().transpose() << std::endl;
+    std::cout << "admittance damping: " << std::endl;
+    std::cout << D.diagonal().transpose() << std::endl;
+    std::cout << "position stiffness: " << std::endl;
+    std::cout << Kp.diagonal().transpose() << std::endl;
+    std::cout << "position damping: " << std::endl;
+    std::cout << Kd.diagonal().transpose() << std::endl;
     //std::cout << "External Force is: " << F_ext.transpose() <<  std::endl;
     //std::cout << "Kp multiplier is: " << Kp_multiplier <<  std::endl;
     //std::cout << "Kp is: " << Kp_multiplier <<  std::endl;
@@ -531,18 +538,6 @@ controller_interface::return_type AdmittanceController::update(const rclcpp::Tim
     std::cout << "orientation: " << orientation << std::endl;
     std::cout << "velocity: " << w.transpose() << std::endl;
     std::cout << "position error is: " << error.head(3).transpose() << std::endl;
-    //std::cout << "Elapsed time is: " << elapsed_time <<  std::endl;
-    //std::cout << "Desired Acceleration is: " << x_ddot_d.transpose() <<  std::endl;
-    //std::cout << "Desired Velocity is: " << x_dot_d.transpose() <<  std::endl;
-    //std::cout << "X desired is: " << x_d.transpose() <<  std::endl;
-    //std::cout << "position target is: " << position_d_target_.transpose() <<  std::endl;
-    //std::cout << "position_d is: " << position_d_.transpose() <<  std::endl;
-    //std::cout << "Inertia is : " << Lambda <<  std::endl;
-    //std::cout << "--------------------------------------------------" <<  std::endl;
-    //std::cout << "tau friction is " << tau_friction.transpose() << std::endl;
-    //std::cout << "tau desired is " << tau_d.transpose() << std::endl;
-    //std::cout << "Control mode is: " << control_mode <<  std::endl; */
-    //std::cout << "F admittance is: " << F_admittance.transpose() <<  std::endl;
     //std::cout << "Orientation Error is: " << error.tail(3).transpose() <<  std::endl; 
     std::cout << "-------------------------------------------------------------------------------------" << std::endl;
   }

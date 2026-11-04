@@ -37,7 +37,7 @@ def main():
     )
     parser.add_argument(
         "trajectory",
-        choices=["1", "2", "3" "4"],
+        choices=["1", "2", "3", "4"],
         help="Trajectory type",
     )
     parser.add_argument(
@@ -80,9 +80,17 @@ def main():
     real = pd.read_csv(real_csv)
     desired = pd.read_csv(desired_csv)
 
+    METRICS_START = 19.0
+    METRICS_END = 59.0
+
+    metrics_mask = (
+        (real["time_s"] >= METRICS_START) &
+        (real["time_s"] <= METRICS_END)
+    )
+
     metrics = calculate_error_metrics(
-        real["position_error_norm"],
-        real["geodesic_error"]
+        real.loc[metrics_mask, "position_error_norm"],
+        real.loc[metrics_mask, "geodesic_error"]
     )
 
 
@@ -112,7 +120,7 @@ def main():
             label=f"{label} measured",
             color="tab:blue"
         )
-
+        ax.axvline(19.0, color="gray", linestyle="--", alpha=0.8)
         ax.set_ylabel(ylabel)
         ax.legend(loc="upper right")
         ax.grid(True, alpha=0.3)
@@ -122,6 +130,7 @@ def main():
         real["position_error_norm"],
         label="Position error norm",
     )
+    axes[6].axvline(19.0, color="gray", linestyle="--", alpha=0.8)
     axes[6].set_ylabel("Position error [m]")
     axes[6].legend(loc="upper right")
     axes[6].grid(True, alpha=0.3)
@@ -131,6 +140,7 @@ def main():
         real["geodesic_error"],
         label="Orientation error",
     )
+    axes[7].axvline(19.0, color="gray", linestyle="--", alpha=0.8)
     axes[7].set_ylabel("Orientation error [rad]")
     axes[7].set_xlabel("Time [s]")
     axes[7].legend(loc="upper right")
@@ -141,6 +151,7 @@ def main():
         real["manipulability"],
         label="Manipulability",
     )
+    axes[8].axvline(19.0, color="gray", linestyle="--", alpha=0.8)
     axes[8].set_ylabel("Manipulability")
     axes[8].set_xlabel("Time [s]")
     axes[8].legend(loc="upper right")

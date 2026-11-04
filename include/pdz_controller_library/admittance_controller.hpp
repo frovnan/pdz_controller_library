@@ -176,15 +176,33 @@ public:
 
     // Positional PID controller
     // for robots we don't use the I-term as we don't want to overshoot our reference.
-    Eigen::Matrix<double, 6, 6> Kp = (Eigen::MatrixXd(6,6) << 1000,   0,   0,   0,   0,   0,
-                                                                0, 1000,   0,   0,   0,   0,
-                                                                0,   0, 1000,   0,   0,   0,  // Inner Position Loop Controller Gains
-                                                                0,   0,   0,  50,   0,   0,
-                                                                0,   0,   0,   0,  50,   0,
-                                                                0,   0,   0,   0,   0,  50).finished();
+
+    // Inner position control loop gains
+/*
+    Eigen::Matrix<double, 6, 6> Kp = (Eigen::MatrixXd(6,6) <<  200,   0,   0,   0,   0,   0,
+                                                                 0, 200,   0,   0,   0,   0,
+                                                                 0,   0, 200,   0,   0,   0,  // low impedance stiffness term
+                                                                 0,   0,   0,  10,   0,   0,
+                                                                 0,   0,   0,   0,  10,   0,
+                                                                 0,   0,   0,   0,   0,  10).finished();
+*//*
+    Eigen::Matrix<double, 6, 6> Kp = (Eigen::MatrixXd(6,6) << 1000,    0,    0,   0,   0,   0,
+                                                                 0, 1000,    0,   0,   0,   0,
+                                                                 0,    0, 1000,   0,   0,   0,  // mid impedance stiffness term
+                                                                 0,    0,    0,  50,   0,   0,
+                                                                 0,    0,    0,   0,  50,   0,
+                                                                 0,    0,    0,   0,   0,  50).finished();
+*/
+    Eigen::Matrix<double, 6, 6> Kp = (Eigen::MatrixXd(6,6) << 2500,    0,    0,    0,    0,    0,
+                                                                 0, 2500,    0,    0,    0,    0,
+                                                                 0,    0, 2500,    0,    0,    0,  // high impedance stiffness term
+                                                                 0,    0,    0,  100,    0,    0,
+                                                                 0,    0,    0,    0,  100,    0,
+                                                                 0,    0,    0,    0,    0,  100).finished();                                                                                                                                
 
 
-    Eigen::Matrix<double, 6, 6> Kd; //  Will be initialized as critically damped  in constructor                                                         
+
+    Eigen::Matrix<double, 6, 6> Kd; //  Will be initialized as critically damped in constructor                                                         
     Eigen::Matrix<double, 6, 1> F_admittance;    // control force from admittance controller     
     Eigen::Matrix<double, 6, 1> w;    // current measured cartesian velocity
 
@@ -192,12 +210,28 @@ public:
     Eigen::Matrix<double, 6, 6> Lambda = IDENTITY;                                           // operational space mass matrix
     Eigen::Matrix<double, 6, 6> Sm = IDENTITY;                                               // task space selection matrix for positions and rotation
     Eigen::Matrix<double, 6, 6> Sf = Eigen::MatrixXd::Zero(6, 6);                            // task space selection matrix for forces
-    Eigen::Matrix<double, 6, 6> K =  (Eigen::MatrixXd(6,6) << 1000,   0,   0,   0,   0,   0,
-                                                                0, 1000,   0,   0,   0,   0,
-                                                                0,   0, 1000,   0,   0,   0,  // impedance stiffness term
-                                                                0,   0,   0,  50,   0,   0,
-                                                                0,   0,   0,   0,  50,   0,
-                                                                0,   0,   0,   0,   0,  50).finished(); // D will be initialized as critically damped
+/*
+    Eigen::Matrix<double, 6, 6> K = (Eigen::MatrixXd(6,6) <<  200,   0,   0,   0,   0,   0,
+                                                                0, 200,   0,   0,   0,   0,
+                                                                0,   0, 200,   0,   0,   0,  // low impedance stiffness term
+                                                                0,   0,   0,  10,   0,   0,
+                                                                0,   0,   0,   0,  10,   0,
+                                                                0,   0,   0,   0,   0,  10).finished();
+*/
+    Eigen::Matrix<double, 6, 6> K = (Eigen::MatrixXd(6,6) << 1000,    0,    0,   0,   0,   0,
+                                                                0, 1000,    0,   0,   0,   0,
+                                                                0,    0, 1000,   0,   0,   0,  // mid impedance stiffness term
+                                                                0,    0,    0,  50,   0,   0,
+                                                                0,    0,    0,   0,  50,   0,
+                                                                0,    0,    0,   0,   0,  50).finished();
+/*
+    Eigen::Matrix<double, 6, 6> K = (Eigen::MatrixXd(6,6) << 2500,    0,    0,    0,    0,    0,
+                                                                0, 2500,    0,    0,    0,    0,
+                                                                0,    0, 2500,    0,    0,    0,  // high impedance stiffness term
+                                                                0,    0,    0,  100,    0,    0,
+                                                                0,    0,    0,    0,  100,    0,
+                                                                0,    0,    0,    0,    0,  100).finished();                                                                                                                                
+*/
 
     Eigen::Matrix<double, 6, 6> D; //  Will be initialized as critically damped  in constructor 
 
@@ -205,21 +239,21 @@ public:
     // TODO: can't render low inertia ??????
 
     // make this to the lamda so it's the same as the modeld inertia of the end effector
-    Eigen::Matrix<double, 6, 6> Theta = (Eigen::MatrixXd(6,6) <<  4,   0,   0,   0,   0,   0,
-                                                                   0,  2,   0,   0,   0,   0,
-                                                                   0,   0,  3,   0,   0,   0,  // virtual inertia matrix
-                                                                   0,   0,   0,  0.075,   0,  0,
-                                                                   0,   0,   0,   0,  0.2,  0,
-                                                                   0,   0,   0,   0,   0,   0.001).finished();
+    Eigen::Matrix<double, 6, 6> Theta = (Eigen::MatrixXd(6,6) <<   4,   0,   0,      0,    0,      0,
+                                                                   0,   2,   0,      0,    0,      0,
+                                                                   0,   0,   3,      0,    0,      0,  // virtual inertia matrix
+                                                                   0,   0,   0,  0.075,    0,      0,
+                                                                   0,   0,   0,      0,  0.2,      0,
+                                                                   0,   0,   0,      0,    0,  0.001).finished();
 
     // the real diagonal in neutral position is 11, 4.3, 5.7, 0.125, 0.4, 0.002                                                             
 
-    Eigen::Matrix<double, 6, 6> T = (Eigen::MatrixXd(6,6) <<       0.5,   0,   0,   0,   0,   0,
-                                                                   0,   0.5,   0,   0,   0,   0,
-                                                                   0,   0,   0.5,   0,   0,   0,  // Inertia term
-                                                                   0,   0,   0,  0.5,   0,    0,
-                                                                   0,   0,   0,   0,  0.5,    0,
-                                                                   0,   0,   0,   0,   0,  0.5).finished();                                               // impedance inertia term
+    Eigen::Matrix<double, 6, 6> T = (Eigen::MatrixXd(6,6) <<  0.5,   0,   0,   0,   0,    0,
+                                                                0, 0.5,   0,   0,   0,    0,
+                                                                0,   0, 0.5,   0,   0,    0,  // Inertia term
+                                                                0,   0,   0, 0.5,   0,    0,
+                                                                0,   0,   0,   0, 0.5,    0,
+                                                                0,   0,   0,   0,   0,  0.5).finished();                                               // impedance inertia term
 
     Eigen::Matrix<double, 6, 6> cartesian_stiffness_target_;                                 // impedance damping term
     Eigen::Matrix<double, 6, 6> cartesian_damping_target_;                                   // impedance damping term

@@ -82,13 +82,13 @@ int main(int argc, char **argv) {
 
         switch (task_selection){
             case 1:{ 
-                std::cout << "Enter new goal position: \n [1] --> 0.0, 0.5, 0.5, pi, 0.0, 0.0 \n [2] --> 0.5, 0.0, 0.5, pi, 0.0, 0.0 \n [3] --> 0.5, 0.5, 0.0, pi, 0.0, 0.0 \n [4] --> Custom \n" ;
+                std::cout << "Enter new goal position: \n [1] --> 0.3, 0.0, 0.5, pi, 0.0, 0.0 \n [2] --> 0.0, 0.3, 0.5, pi, 0.0, 0.0 \n [3] --> 0.5, 0.5, 0.1, pi, 0.0, 0.0 \n [4] --> Custom \n" ;
                 std::cin >> pose_selection;
 
                 switch (pose_selection){
                     case 1:{ // x = 0.0
-                        pose_request->x = 0.0;
-                        pose_request->y = 0.5;
+                        pose_request->x = 0.3;
+                        pose_request->y = 0.0;
                         pose_request->z = 0.5;
                         pose_request->roll = M_PI;
                         pose_request->pitch = 0.0;
@@ -97,8 +97,8 @@ int main(int argc, char **argv) {
                     }
 
                     case 2:{ // y = 0.0
-                        pose_request->x = 0.5;
-                        pose_request->y = 0.0;
+                        pose_request->x = 0.0;
+                        pose_request->y = 0.3;
                         pose_request->z = 0.5;
                         pose_request->roll = M_PI;
                         pose_request->pitch = 0.0;
@@ -109,7 +109,7 @@ int main(int argc, char **argv) {
                     case 3:{ // z = 0.0
                         pose_request->x = 0.5;
                         pose_request->y = 0.5;
-                        pose_request->z = 0.0;
+                        pose_request->z = 0.1;
                         pose_request->roll = M_PI;
                         pose_request->pitch = 0.0;
                         pose_request->yaw = 0.0;

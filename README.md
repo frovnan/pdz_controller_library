@@ -155,7 +155,9 @@ Parallel to the controller, the log_pose_data script is launched, which waits fo
 ros2 run pdz_controller_library user_input_client
 ```
 
-select 'Trajectory' and your desired trajectory. After a set amount of time, the logger saves two .csv datasets in the results folder - one with the measured robot pose data, and one with the commanded pose data, both labeled with the controller name, the trajectory, and a timestamp. Run the plot_pose_data script
+select 'Trajectory' and your desired trajectory. After a set amount of time, the logger saves two .csv datasets in the results folder - one with the measured robot pose data, and one with the commanded pose data, both labeled with the controller name, the trajectory, and a timestamp. Note that trajectories 1 and 2 sometimes require you to restart since the generated poses are checked on whether they violate any joint limits.
+
+Run the plot_pose_data script
 
 ```bash
 ros2 run pdz_controller_library plot_trajectory_data <controller_name> <trajectory> <timestamp>
