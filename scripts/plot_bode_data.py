@@ -65,10 +65,13 @@ def correct_euler_angles(df, angle_column, threshold=1.0):
     if angle_column == "rx":
         angles[angles < threshold] += np.pi
 
-    elif angle_column in ("ry", "rz"):
-        angles[angles > threshold] -= np.pi
+    elif angle_column in ("ry"):
+        angles[angles > threshold] *= -1 
         angles[angles < -threshold] += np.pi
 
+    elif angle_column in ("rz"):
+        angles[angles > threshold] -= np.pi
+        angles[angles < -threshold] += np.pi
     return angles
 
 
