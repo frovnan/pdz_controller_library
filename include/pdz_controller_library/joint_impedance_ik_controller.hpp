@@ -277,6 +277,6 @@ class JointImpedanceIkController : public controller_interface::ControllerInterf
   const double dt = 0.001; // 1 kHz control loop
 
   //Filter-parameters
-  double filter_params_{0.01};
+  double filter_params_{0.001};
 };
 }  // namespace pdz_controller_library

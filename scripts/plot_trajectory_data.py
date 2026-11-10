@@ -80,19 +80,28 @@ def main():
     real = pd.read_csv(real_csv)
     desired = pd.read_csv(desired_csv)
 
-    METRICS_START = 19.0
+    # --------- Analysis interval ----------
+    METRICS_START = 16.0
     METRICS_END = 59.0
 
-    metrics_mask = (
+    real = real[
         (real["time_s"] >= METRICS_START) &
         (real["time_s"] <= METRICS_END)
-    )
+    ].copy()
 
+    desired = desired[
+        (desired["time_s"] >= METRICS_START) &
+        (desired["time_s"] <= METRICS_END)
+    ].copy()
+
+    if real.empty or desired.empty:
+        parser.error("No data found within the selected time interval.")
+
+    # Calculate error metrics over the selected interval
     metrics = calculate_error_metrics(
-        real.loc[metrics_mask, "position_error_norm"],
-        real.loc[metrics_mask, "geodesic_error"]
+        real["position_error_norm"],
+        real["geodesic_error"]
     )
-
 
     # Pose components: CSV column, plot label, vertical axis label.
     pose_plots = [
@@ -115,12 +124,12 @@ def main():
             color="orange"
         )
         ax.plot(
-            real["time_s"], 
-            real[column], 
+            real["time_s"],
+            real[column],
             label=f"{label} measured",
             color="tab:blue"
         )
-        ax.axvline(19.0, color="gray", linestyle="--", alpha=0.8)
+        #ax.set_ylim(bottom=0)
         ax.set_ylabel(ylabel)
         ax.legend(loc="upper right")
         ax.grid(True, alpha=0.3)
@@ -130,7 +139,7 @@ def main():
         real["position_error_norm"],
         label="Position error norm",
     )
-    axes[6].axvline(19.0, color="gray", linestyle="--", alpha=0.8)
+    axes[6].set_ylim(bottom=0)
     axes[6].set_ylabel("Position error [m]")
     axes[6].legend(loc="upper right")
     axes[6].grid(True, alpha=0.3)
@@ -140,9 +149,8 @@ def main():
         real["geodesic_error"],
         label="Orientation error",
     )
-    axes[7].axvline(19.0, color="gray", linestyle="--", alpha=0.8)
+    axes[7].set_ylim(bottom=0)
     axes[7].set_ylabel("Orientation error [rad]")
-    axes[7].set_xlabel("Time [s]")
     axes[7].legend(loc="upper right")
     axes[7].grid(True, alpha=0.3)
 
@@ -151,14 +159,16 @@ def main():
         real["manipulability"],
         label="Manipulability",
     )
-    axes[8].axvline(19.0, color="gray", linestyle="--", alpha=0.8)
+    axes[8].set_ylim(bottom=0)
     axes[8].set_ylabel("Manipulability")
     axes[8].set_xlabel("Time [s]")
     axes[8].legend(loc="upper right")
     axes[8].grid(True, alpha=0.3)
 
+    axes[8].set_xlim(METRICS_START, METRICS_END)
+
     fig.suptitle(real_csv.stem.replace("_real", ""), fontsize=14)
-    
+
     # LaTeX-style metrics beneath the plots
     metrics_text = (
         rf"$\mathrm{{RMSE}}_p = {metrics['position_rmse'] * 1000:.2f}\,\mathrm{{mm}}"
@@ -178,13 +188,22 @@ def main():
 
     fig.tight_layout(rect=[0, 0.055, 1, 0.96])
 
-
     # Save next to the CSV files, then display the figure.
     output_path = real_csv.with_name(
         real_csv.stem.replace("_real", "") + "_plot.png"
     )
     fig.savefig(output_path, dpi=300, bbox_inches="tight")
     print(f"Saved plot to: {output_path}")
+
+    print(f"Analysis interval: {METRICS_START:.1f}–{METRICS_END:.1f} s")
+    print(
+        f"Position RMSE: {metrics['position_rmse'] * 1000:.2f} mm | "
+        f"MAE: {metrics['position_mae'] * 1000:.2f} mm"
+    )
+    print(
+        f"Orientation RMSE: {np.degrees(metrics['orientation_rmse']):.2f}° | "
+        f"MAE: {np.degrees(metrics['orientation_mae']):.2f}°"
+    )
 
     plt.show()
 

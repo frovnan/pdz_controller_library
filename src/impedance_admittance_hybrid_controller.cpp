@@ -474,7 +474,6 @@ controller_interface::return_type ImpedanceAdmittanceHybridController::update(co
       Eigen::AngleAxisd(rotation_d_target_[1], Eigen::Vector3d::UnitY()) *
       Eigen::AngleAxisd(rotation_d_target_[2], Eigen::Vector3d::UnitZ());
 
-  updateJointStates();
   calculating_environmental_force_norm();
   calculating_position_norm();
   update_environmental_stiffness();
@@ -564,7 +563,7 @@ controller_interface::return_type ImpedanceAdmittanceHybridController::update(co
   error_pd.tail(3) << error_quaternion_current.x(), error_quaternion_current.y(), error_quaternion_current.z();
   error_pd.tail(3) << -transform.rotation() * error_pd.tail(3); 
 
-  double position_error_norm = error.head(3).norm();
+  double position_error_norm = (position - position_d_target_).norm();
   double geodesic_error = 2.0 * std::acos(std::abs(error_quaternion.w()));
   double manipulability = sqrt((jacobian.topLeftCorner(6,7) * jacobian.topLeftCorner(6,7).transpose()).determinant());
 

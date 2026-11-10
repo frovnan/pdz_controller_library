@@ -987,7 +987,7 @@ controller_interface::return_type RiemannianMotionPolicy::update(const rclcpp::T
   error.tail(3) << -transform.rotation() * error.tail(3);
   error.head(3) << position - position_d_;
 
-  double position_error_norm = error.head(3).norm();
+  double position_error_norm = (position - position_d_target_).norm();
   double geodesic_error = 2.0 * std::acos(std::abs(error_quaternion.w()));
   double manipulability = sqrt((jacobian.topLeftCorner(6,7) * jacobian.topLeftCorner(6,7).transpose()).determinant());
 

@@ -210,21 +210,21 @@ public:
     Eigen::Matrix<double, 6, 6> Lambda = IDENTITY;                                           // operational space mass matrix
     Eigen::Matrix<double, 6, 6> Sm = IDENTITY;                                               // task space selection matrix for positions and rotation
     Eigen::Matrix<double, 6, 6> Sf = Eigen::MatrixXd::Zero(6, 6);                            // task space selection matrix for forces
-/*
+
     Eigen::Matrix<double, 6, 6> K = (Eigen::MatrixXd(6,6) <<  200,   0,   0,   0,   0,   0,
                                                                 0, 200,   0,   0,   0,   0,
                                                                 0,   0, 200,   0,   0,   0,  // low impedance stiffness term
                                                                 0,   0,   0,  10,   0,   0,
                                                                 0,   0,   0,   0,  10,   0,
                                                                 0,   0,   0,   0,   0,  10).finished();
-*/
+/*
     Eigen::Matrix<double, 6, 6> K = (Eigen::MatrixXd(6,6) << 1000,    0,    0,   0,   0,   0,
                                                                 0, 1000,    0,   0,   0,   0,
                                                                 0,    0, 1000,   0,   0,   0,  // mid impedance stiffness term
                                                                 0,    0,    0,  50,   0,   0,
                                                                 0,    0,    0,   0,  50,   0,
                                                                 0,    0,    0,   0,   0,  50).finished();
-/*
+*//*
     Eigen::Matrix<double, 6, 6> K = (Eigen::MatrixXd(6,6) << 2500,    0,    0,    0,    0,    0,
                                                                 0, 2500,    0,    0,    0,    0,
                                                                 0,    0, 2500,    0,    0,    0,  // high impedance stiffness term
@@ -233,7 +233,7 @@ public:
                                                                 0,    0,    0,    0,    0,  100).finished();                                                                                                                                
 */
 
-    Eigen::Matrix<double, 6, 6> D; //  Will be initialized as critically damped  in constructor 
+    Eigen::Matrix<double, 6, 6> D; //  Will be initialized as critically damped in constructor 
 
     // TODO: works without instability but is very strange feeling. How do we interpret the values of Theta?
     // TODO: can't render low inertia ??????

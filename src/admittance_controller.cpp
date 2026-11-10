@@ -261,6 +261,7 @@ CallbackReturn AdmittanceController::on_activate(const rclcpp_lifecycle::State& 
   x_d.head(3) = position_d_target_;
   x_d.tail(3) = rotation_d_target_;
   x_dot_d.setZero();
+  x_d_orientation_quat_ = orientation_d_.normalized();
   //x_d_orientation_quat_ = orientation_d_target_.normalized();
   std::cout << "Completed Activation process" << std::endl;
   return CallbackReturn::SUCCESS;
@@ -371,7 +372,10 @@ controller_interface::return_type AdmittanceController::update(const rclcpp::Tim
   Theta = Lambda;
   D = 2.05 * K.cwiseSqrt() * Lambda.diagonal().cwiseSqrt().asDiagonal(); // Admittance control law to compute desired trajectory
   Kd = 2.05 * Kp.cwiseSqrt() * Lambda.diagonal().cwiseSqrt().asDiagonal(); // Admittance control law to compute desired trajectory
+
+
   w = jacobian * dq_; // cartesian velocity
+
   Eigen::Affine3d transform;
   transform.linear() = data_.oMf[end_effector_frame_id_].rotation();  // Extract rotation
   transform.translation() = data_.oMf[end_effector_frame_id_].translation();  // Extract translation
@@ -398,21 +402,25 @@ controller_interface::return_type AdmittanceController::update(const rclcpp::Tim
  
 
   // Convert x_d.tail(3) (Euler angles) to a quaternion
-  x_d_orientation_quat_ = Eigen::AngleAxisd(rotation_d_target_[0], Eigen::Vector3d::UnitX())
-                        * Eigen::AngleAxisd(rotation_d_target_[1], Eigen::Vector3d::UnitY())
-                        * Eigen::AngleAxisd(rotation_d_target_[2], Eigen::Vector3d::UnitZ());
+  x_d_orientation_quat_ = Eigen::AngleAxisd(x_d.tail(3)[0], Eigen::Vector3d::UnitX())
+                        * Eigen::AngleAxisd(x_d.tail(3)[1], Eigen::Vector3d::UnitY())
+                        * Eigen::AngleAxisd(x_d.tail(3)[2], Eigen::Vector3d::UnitZ());
 
   // Ensure the quaternions are in the same hemisphere
   if (orientation_d_.coeffs().dot(x_d_orientation_quat_.coeffs()) < 0.0) {
       x_d_orientation_quat_.coeffs() << -x_d_orientation_quat_.coeffs();
   }
-    // Calculate the virtual error in quaternions
+  Eigen::Matrix3d R_d = orientation_d_.toRotationMatrix();
+  Eigen::Matrix3d R_v = x_d_orientation_quat_.toRotationMatrix();
+  virtual_error.tail(3) = R_d * pinocchio::log3(R_d.transpose() * R_v);
+  /*
+  // Calculate the virtual error in quaternions
   Eigen::Quaterniond virtual_error_quat = orientation_d_.inverse() * x_d_orientation_quat_;
   // Extract the virtual orientation error as a 3D vector (imaginary part for small-angle approximation)
   // Transform the error into the desired orientation frame
   virtual_error.tail(3) << virtual_error_quat.x(), virtual_error_quat.y(), virtual_error_quat.z();
   virtual_error.tail(3) << -x_d_orientation_quat_.toRotationMatrix() * virtual_error.tail(3);
-  //virtual_error.tail(3) = pinocchio::log3(orientation_d_.toRotationMatrix().transpose() * x_d_orientation_quat_.toRotationMatrix());
+  */
 
   //virtual_error.tail(3) = -x_d_orientation_quat_.toRotationMatrix() * virtual_error_quat.vec(); // vec for rotational part
   virtual_error.head(3) = x_d.head(3) - position_d_; //linear error
@@ -444,7 +452,7 @@ controller_interface::return_type AdmittanceController::update(const rclcpp::Tim
   error.tail(3) << error_quaternion.x(), error_quaternion.y(), error_quaternion.z();
   error.tail(3) << -transform.rotation() * error.tail(3);
 
-  double position_error_norm = error.head(3).norm();
+  double position_error_norm = (position - position_d_target_).norm();
   double geodesic_error = 2.0 * std::acos(std::abs(error_quaternion.w()));
   double manipulability = sqrt((jacobian.topLeftCorner(6,7) * jacobian.topLeftCorner(6,7).transpose()).determinant());
 
