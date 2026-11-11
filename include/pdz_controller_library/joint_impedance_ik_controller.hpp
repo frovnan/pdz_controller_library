@@ -154,28 +154,28 @@ class JointImpedanceIkController : public controller_interface::ControllerInterf
 */
   Eigen::MatrixXd M;
   Eigen::Matrix<double, 6, 6> Lambda = IDENTITY;
-
+/*
   Eigen::Matrix<double, 6, 6> K_cartesian_desired = (Eigen::MatrixXd(6,6) <<  200,   0,   0,   0,   0,   0,
                                                                                 0, 200,   0,   0,   0,   0,
                                                                                 0,   0, 200,   0,   0,   0,  // low impedance stiffness term
                                                                                 0,   0,   0,  10,   0,   0,
                                                                                 0,   0,   0,   0,  10,   0,
                                                                                 0,   0,   0,   0,   0,  10).finished();
-/*
+*//*
   Eigen::Matrix<double, 6, 6> K_cartesian_desired = (Eigen::MatrixXd(6,6) << 1000,    0,    0,   0,   0,   0,
                                                                                 0, 1000,    0,   0,   0,   0,
                                                                                 0,    0, 1000,   0,   0,   0,  // mid impedance stiffness term
                                                                                 0,    0,    0,  50,   0,   0,
                                                                                 0,    0,    0,   0,  50,   0,
                                                                                 0,    0,    0,   0,   0,  50).finished();
-*//*
+*/
   Eigen::Matrix<double, 6, 6> K_cartesian_desired = (Eigen::MatrixXd(6,6) << 2500,    0,    0,    0,    0,    0,
                                                                                 0, 2500,    0,    0,    0,    0,
                                                                                 0,    0, 2500,    0,    0,    0,  // high impedance stiffness term
                                                                                 0,    0,    0,  100,    0,    0,
                                                                                 0,    0,    0,    0,  100,    0,
                                                                                 0,    0,    0,    0,    0,  100).finished();  
-*/                                                            
+                                                           
 
   Eigen::Matrix<double, 6, 6> D_cartesian_desired = (Eigen::MatrixXd(6,6) <<  100,    0,   0,   0,   0,   0,
                                                                                 0,  100,   0,   0,   0,   0,

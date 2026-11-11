@@ -81,7 +81,7 @@ def main():
     desired = pd.read_csv(desired_csv)
 
     # --------- Analysis interval ----------
-    METRICS_START = 16.0
+    METRICS_START = 18.0
     METRICS_END = 59.0
 
     real = real[

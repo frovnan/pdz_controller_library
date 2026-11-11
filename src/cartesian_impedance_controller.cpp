@@ -335,7 +335,7 @@ controller_interface::return_type CartesianImpedanceController::update(const rcl
   error.tail(3) << -transform.rotation() * error.tail(3);
 
   double position_error_norm = (position - position_d_target_).norm();
-  double geodesic_error = 2.0 * std::acos(std::abs(error_quaternion.w()));
+  double geodesic_error = 2.0 * std::acos(std::abs((orientation.inverse() * orientation_d_target_).w()));
   double manipulability = sqrt((jacobian.topLeftCorner(6,7) * jacobian.topLeftCorner(6,7).transpose()).determinant());
 
   // --- Publish real pose for visualization ---

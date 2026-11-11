@@ -263,7 +263,7 @@ def main():
     # 3x2 grid of DoFs, each containing magnitude and phase subplots
     fig, axes = plt.subplots(
         3, 2,
-        figsize=(15, 15),
+        figsize=(15, 13),
         squeeze=False,
     )
 
